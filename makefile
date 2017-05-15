@@ -2,8 +2,6 @@ default: clean package
 
 .PHONY: clean
 clean:
-	rm -rf dist
-	rm -rf collectd-nginx-plus.egg-info
 	rm -rf .tox
 	rm -rf nosetests.xml
 	rm -rf pylint.out
@@ -15,11 +13,3 @@ test:
 .PHONY: check
 check:
 	tox -e pylint || true
-
-.PHONY: package
-package:
-	python setup.py sdist
-
-.PHONY: install
-install:
-	python setup.py install
