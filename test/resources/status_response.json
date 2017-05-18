@@ -383,52 +383,6 @@
           "downtime": 0,
           "downstart": 0,
           "selected": 1495052770000
-        }, {
-          "id": 2,
-          "server": "10.0.0.2:15434",
-          "name": "10.0.0.2:15434",
-          "backup": false,
-          "weight": 1,
-          "state": "up",
-          "active": 0,
-          "connections": 191000,
-          "connect_time": 2,
-          "first_byte_time": 10,
-          "response_time": 10,
-          "sent": 20437000,
-          "received": 2743104754,
-          "fails": 0,
-          "unavail": 0,
-          "health_checks": {
-            "checks": 76582,
-            "fails": 0,
-            "unhealthy": 0,
-            "last_passed": true
-          },
-          "downtime": 0,
-          "downstart": 0,
-          "selected": 1495052769000
-        }, {
-          "id": 3,
-          "server": "10.0.0.2:15435",
-          "name": "10.0.0.2:15435",
-          "backup": false,
-          "weight": 1,
-          "state": "down",
-          "active": 0,
-          "connections": 0,
-          "sent": 0,
-          "received": 0,
-          "fails": 0,
-          "unavail": 0,
-          "health_checks": {
-            "checks": 0,
-            "fails": 0,
-            "unhealthy": 0
-          },
-          "downtime": 0,
-          "downstart": 0,
-          "selected": 0
         }],
         "zombies": 0,
         "zone": "dynamic"
@@ -484,27 +438,6 @@
           "downtime": 0,
           "downstart": 0,
           "selected": 1495052769000
-        }, {
-          "id": 2,
-          "server": "10.0.0.7:53",
-          "name": "10.0.0.7:53",
-          "backup": false,
-          "weight": 1,
-          "state": "down",
-          "active": 0,
-          "connections": 0,
-          "sent": 0,
-          "received": 0,
-          "fails": 0,
-          "unavail": 0,
-          "health_checks": {
-            "checks": 0,
-            "fails": 0,
-            "unhealthy": 0
-          },
-          "downtime": 0,
-          "downstart": 0,
-          "selected": 0
         }],
         "zombies": 0,
         "zone": "dns_backends"

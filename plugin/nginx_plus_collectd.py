@@ -17,7 +17,7 @@ class MetricEmitter:
         self.emit_func(status_json, self.metrics, sink)
 
 class MetricRecord:
-    TO_STRING_FORMAT = 'metric_name={},metric_type={},metric_value={},instance_id={},dimensions={},timestamp={}'
+    TO_STRING_FORMAT = '[metric_name={},metric_type={},metric_value={},instance_id={},dimensions={},timestamp={}]'
 
     def __init__(self, metric_name, metric_type, metric_value, instance_id, dimensions=None, timestamp=None):
         self.metric_name = metric_name
@@ -28,7 +28,7 @@ class MetricRecord:
         self.timestamp = timestamp or time.time()
 
     def to_string(self):
-        return TO_STRING_FORMAT.format(self.metric_name, self.metric_type, self.metric_value, self.instance_id, self.dimensions, self.timestamp)
+        return MetricRecord.TO_STRING_FORMAT.format(self.metric_name, self.metric_type, self.metric_value, self.instance_id, self.dimensions, self.timestamp)
 
 class MetricSink:
     def emit(self, metric_record):
@@ -85,8 +85,8 @@ DEFAULT_STREAM_SERVER_ZONE_METRICS = [
     MetricDefinition('stream.server.zone.connections', 'guage', 'connections')
 ]
 
-DEFAULT_STREAM_UPSTEAM_METRICS = [
-    MetricDefinition('stream.upstreams.requests', 'guage', 'requests')
+DEFAULT_STREAM_UPSTREAM_METRICS = [
+    MetricDefinition('stream.upstreams.connections', 'guage', 'connections')
 ]
 
 SERVER_ZONE_METRICS = []
@@ -108,13 +108,6 @@ class NginxPlusPlugin:
         self.sink = None
         self.emitters = []
 
-    def init_callback(self):
-        '''
-        Initialize the plugin.
-        This is called only once, when the plugin module is loaded.
-        '''
-        # TODO
-
     def config_callback(self, conf):
         '''
         Configure the plugin with the configuration provided by collectd.
@@ -132,22 +125,22 @@ class NginxPlusPlugin:
             elif node.key == CACHE:
                 self.emitters.append(MetricEmitter(self._emit_cache_metrics, CACHE_METRICS))
             elif node.key == UPSTREAM:
-                self.emitters.append(MetricEmitter(self._emit_upsteams_metrics, UPSTREAM_METRICS))
+                self.emitters.append(MetricEmitter(self._emit_upstreams_metrics, UPSTREAM_METRICS))
             elif node.key == MEMORY_ZONE:
                 self.emitters.append(MetricEmitter(self._emit_memory_zone_metrics, MEMORY_ZONE_METRICS))
             elif node.key == SERVER_ZONE:
                 self.emitters.append(MetricEmitter(self._emit_server_zone_metrics, SERVER_ZONE_METRICS))
             elif node.key == STREAM_UPSTREAM:
-                self.emitters.append(MetricEmitter(self._emit_stream_upstreams_metric, STREAM_UPSTREAM_METRICS))
+                self.emitters.append(MetricEmitter(self._emit_stream_upstreams_metrics, STREAM_UPSTREAM_METRICS))
             elif node.key == STREAM_SERVER_ZONE:
                 self.emitters.append(MetricEmitter(self._emit_stream_server_zone_metrics, STREAM_SERVER_ZONE_METRICS))
 
         # Default metric emitters
         self.emitters.append(MetricEmitter(self._emit_top_level_metrics, DEFAULT_CONNECTION_METRICS))
         self.emitters.append(MetricEmitter(self._emit_server_zone_metrics, DEFAULT_SERVER_ZONE_METRICS))
-        self.emitters.append(MetricEmitter(self._emit_upsteams_metrics, DEFAULT_UPSTREAM_METRICS))
+        self.emitters.append(MetricEmitter(self._emit_upstreams_metrics, DEFAULT_UPSTREAM_METRICS))
         self.emitters.append(MetricEmitter(self._emit_stream_server_zone_metrics, DEFAULT_STREAM_SERVER_ZONE_METRICS))
-        self.emitters.append(MetricEmitter(self._emit_stream_upstreams_metric, DEFAULT_STREAM_UPSTEAM_METRICS))
+        self.emitters.append(MetricEmitter(self._emit_stream_upstreams_metrics, DEFAULT_STREAM_UPSTREAM_METRICS))
 
         self.sink = MetricSink()
         self.nginx_agent = NginxStatusAgent(status_ip, status_port)
@@ -165,71 +158,55 @@ class NginxPlusPlugin:
         for emitter in self.emitters:
             emitter.emit(status_json, self.sink)
 
-
     def _emit_top_level_metrics(self, status_json, metrics, sink):
         dimensions = {'nginx.version' : self._reduce_to_path(status_json, 'nginx_version')}
         self._fetch_and_emit_metrics(status_json, metrics, dimensions, sink)
 
     def _emit_server_zone_metrics(self, status_json, metrics, sink):
-        server_zone_obj = self._reduce_to_path(status_json, 'server_zones')
-        if server_zone_obj:
-            # Each key in the server_zone object is a server zone name
-            for zone_name, server_zone in server_zone_obj.iteritems():
-                dimensions = {'server.zone.name' : zone_name}
-                self._fetch_and_emit_metrics(server_zone, metrics, dimensions, sink)
+        server_zones_obj = self._reduce_to_path(status_json, 'server_zones')
+        self._build_container_keyed_metrics(server_zones_obj, 'server.zone.name', metrics, sink)
 
-    def _emit_upsteams_metrics(self, status_json, metrics, sink):
-        upsteams_obj = self._reduce_to_path(status_json, 'upsteams')
-        if upsteams_obj:
-            # Each key in the upsteams object is an upstream name
-            for upsteam_name, upstream in upsteams_obj.iteritems():
-                dimensions = {'upstream.name' : zone_name}
-                # Each upsteam is composed of peer servers, this is where the metric values are provided
-                for peer in upsteam.peers:
-                    # Get the dimensions from each peer server
-                    dimensions['upstream.peer.name'] = self._reduce_to_path(peer, 'name')
-                    self._fetch_and_emit_metrics(peer, metrics, dimensions, sink)
+    def _emit_upstreams_metrics(self, status_json, metrics, sink):
+        upstreams_obj = self._reduce_to_path(status_json, 'upstreams')
+        self._build_container_keyed_peer_metrics(upstreams_obj, 'upstream.name', 'upstream.peer.name', metrics, sink)
 
     def _emit_stream_server_zone_metrics(self, status_json, metrics, sink):
-        stream_server_zones_obj = self._reduce_to_path(status_json, 'stream.server_zones')
-        if stream_server_zones_obj:
-            # Each key in the stream.server_zones object is a server zone name
-            for zone_name, server_zone in stream_server_zones_obj.iteritems():
-                dimensions = {'stream.server.zone.name' : zone_name}
-                self._fetch_and_emit_metrics(server_zone, metrics, dimensions, sink)
+        server_zones_obj = self._reduce_to_path(status_json, 'stream.server_zones')
+        self._build_container_keyed_metrics(server_zones_obj, 'stream.server.zone.name', metrics, sink)
 
-    def _emit_stream_upstreams_metric(self, status_json, metrics, sink):
-        stream_upsteams_obj = self._reduce_to_path(status_json, 'stream.upsteams')
-        if stream_upsteams_obj:
-            # Each key in the stream.upstreams object is an upstream name
-            for upsteam_name, upstream in stream_upsteams_obj.iteritems():
-                dimensions = {'stream.upstream.name' : zone_name}
-                # Each upsteam is composed of peer servers, this is where the metric values are provided
-                for peer in upsteam.peers:
-                    # Get the dimensions from each peer server
-                    dimensions['stream.upstream.peer.name'] = self._reduce_to_path(peer, 'name')
-                    self._fetch_and_emit_metrics(peer, metrics, dimensions, sink)
+    def _emit_stream_upstreams_metrics(self, status_json, metrics, sink):
+        stream_upstreams_obj = self._reduce_to_path(status_json, 'stream.upstreams')
+        self._build_container_keyed_peer_metrics(stream_upstreams_obj, 'stream.upstream.name', 'stream.upstream.peer.name', metrics, sink)
 
     def _emit_memory_zone_metrics(self, status_json, metrics, sink):
         slab_obj = self._reduce_to_path(status_json, 'slabs')
-        if slab_obj:
-            # Each key in the slabs object is a slab name
-            for slab_name, slab in slab_obj:
-                dimensions = {'memory.zone.name' : slab_name}
-                self._fetch_and_emit_metrics(slab, metrics, dimensions, sink)
+        self._build_container_keyed_metrics(slab_obj, 'memory.zone.name', metrics, sink)
 
     def _emit_cache_metrics(self, status_json, metrics, sink):
         cache_obj = self._reduce_to_path(status_json, 'caches')
-        if cache_obj:
-            # Each key in the caches object is a cache name
-            for cache_name, cache in cache_obj:
-                dimensions = {'cache.name' : cache_name}
-                self._fetch_and_emit_metrics(cache, metrics, dimensions, sink)
+        self._build_container_keyed_metrics(cache_obj, 'cache.name', metrics, sink)
+
+    def _build_container_keyed_metrics(self, containers_obj, container_dimension_name, metrics, sink):
+        if containers_obj:
+            for container_name, container in containers_obj.iteritems():
+                dimensions = {container_dimension_name : container_name}
+                self._fetch_and_emit_metrics(container, metrics, dimensions, sink)
+
+    def _build_container_keyed_peer_metrics(self, containers_obj, container_dimension_name, peer_dimension_name, metrics, sink):
+        if containers_obj:
+            # Each key in the container object is the name of the container
+            for container_name, container in containers_obj.iteritems():
+                # Each container is has multiple peer servers, this is where the metric values are pulled from
+                for peer in container['peers']:
+                    # Get the dimensions from each peer server
+                    dimensions = {container_dimension_name : container_name, peer_dimension_name : self._reduce_to_path(peer, 'name')}
+                    self._fetch_and_emit_metrics(peer, metrics, dimensions, sink)
 
     def _fetch_and_emit_metrics(self, scoped_obj, metrics, dimensions, sink):
         for metric in metrics:
             metric_value = self._reduce_to_path(scoped_obj, metric.scoped_object_key)
-            if metric_value:
+            if metric_value is not None:
+                record = MetricRecord(metric.name,metric.metric_type, metric_value, self.instance_id, dimensions, time.time())
                 sink.emit(MetricRecord(metric.name,metric.metric_type, metric_value, self.instance_id, dimensions, time.time()))
 
     # Copied from collectd-elasticsearch
