@@ -242,6 +242,5 @@ else:
 
     plugin = NginxPlusPlugin()
 
-    collectd.register_init(plugin.init_callback)
     collectd.register_config(plugin.config_callback)
     collectd.register_read(plugin.read_callback)

@@ -110,6 +110,17 @@ class NginxCollectdTest(TestCase):
         self.assertEquals(1, len(self.mock_sink.captured_records))
         self._validate_single_record(expected_record, self.mock_sink.captured_records[0])
 
+    def test_emit_memory_zone_metrics(self):
+        status_json = self._read_test_resource_json('resources/status_response.json')
+
+        metrics = [MetricDefinition('zones.pages.used', 'guage', 'pages.used')]
+        expected_record = MetricRecord('zones.pages.used', 'guage', 6, self.plugin.instance_id, {'memory.zone.name' : 'nginxorg'})
+
+        self.plugin._emit_memory_zone_metrics(status_json, metrics, self.mock_sink)
+
+        self.assertEquals(1, len(self.mock_sink.captured_records))
+        self._validate_single_record(expected_record, self.mock_sink.captured_records[0])
+
     def _random_string(self, length=8):
         return ''.join(random.choice(string.lowercase) for i in range(length))
 
