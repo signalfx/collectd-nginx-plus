@@ -4,19 +4,22 @@ import sys
 import string
 import json
 import random
-from mock import Mock
+from mock import Mock, MagicMock
 
 # Mock out the collectd module
 # TODO: Write a mock implementation of collectd instead of just stubbing
 sys.modules['collectd'] = Mock()
 
 from unittest import TestCase
-from plugin.nginx_plus_collectd import NginxPlusPlugin, MetricRecord, MetricDefinition
+from plugin.nginx_plus_collectd import NginxPlusPlugin, MetricRecord, MetricDefinition,\
+                                        DEFAULT_CONNECTION_METRICS, DEFAULT_SERVER_ZONE_METRICS,\
+                                        DEFAULT_UPSTREAM_METRICS, DEFAULT_STREAM_SERVER_ZONE_METRICS,\
+                                        DEFAULT_STREAM_UPSTREAM_METRICS
 
 class NginxCollectdTest(TestCase):
     def setUp(self):
         self.plugin = NginxPlusPlugin()
-        self.plugin.instance_id = self._random_string()
+        self.plugin._instance_id = self._random_string()
         self.mock_sink = MockMetricSink()
 
     def test_emit_top_level_metrics(self):
@@ -121,11 +124,56 @@ class NginxCollectdTest(TestCase):
         self.assertEquals(1, len(self.mock_sink.captured_records))
         self._validate_single_record(expected_record, self.mock_sink.captured_records[0])
 
+    def test_instance_id_set(self):
+        expected_instance_id = '206.251.255.64'
+        status_json = self._read_test_resource_json('resources/status_response.json')
+
+        mock_nginx_agent = Mock()
+        mock_nginx_agent.get_status = MagicMock(return_value=status_json)
+
+        self.plugin._instance_id = None
+        self.plugin.nginx_agent = mock_nginx_agent
+
+        actual_instance_id = self.plugin.instance_id
+        self.assertEquals(expected_instance_id, actual_instance_id)
+
+    def test_no_emit_invalid_path(self):
+        status_json = self._read_test_resource_json('resources/status_response.json')
+
+        metrics = [MetricDefinition('connection.accepted', 'guage', 'foo.bar')]
+        self.plugin._emit_top_level_metrics(status_json, metrics, self.mock_sink)
+
+        self.assertEquals(0, len(self.mock_sink.captured_records))
+
+    def test_config_callback_only_defaults(self):
+        expected_metric_names = self._extract_metric_names_from_definitions(DEFAULT_CONNECTION_METRICS)
+        expected_metric_names.extend(self._extract_metric_names_from_definitions(DEFAULT_SERVER_ZONE_METRICS))
+        expected_metric_names.extend(self._extract_metric_names_from_definitions(DEFAULT_UPSTREAM_METRICS))
+        expected_metric_names.extend(self._extract_metric_names_from_definitions(DEFAULT_STREAM_SERVER_ZONE_METRICS))
+        expected_metric_names.extend(self._extract_metric_names_from_definitions(DEFAULT_STREAM_UPSTREAM_METRICS))
+
+        mock_config = Mock()
+        mock_config.children = {}
+
+        self.plugin.config_callback(mock_config)
+
+        actual_metric_names = []
+        for emitter in self.plugin.emitters:
+            actual_metric_names.extend(self._extract_metic_names_from_emitter(emitter))
+
+        self.assertEquals(len(expected_metric_names), len(actual_metric_names))
+
     def _random_string(self, length=8):
         return ''.join(random.choice(string.lowercase) for i in range(length))
 
     def _random_int(self, start=0, stop=100000):
         return random.randint(start, stop)
+
+    def _extract_metric_names_from_definitions(self, metric_defs):
+        return [metric_def.name for metric_def in metric_defs]
+
+    def _extract_metic_names_from_emitter(self, emitter):
+        return self._extract_metric_names_from_definitions(emitter.metrics)
 
     def _read_test_resource_json(self, relative_path):
         abs_path = os.path.join(os.path.dirname(__file__), relative_path)

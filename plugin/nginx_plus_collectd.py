@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import time
+import logging
 import requests
 
 class MetricDefinition:
@@ -36,7 +37,7 @@ class MetricSink:
 
         emit_value.time = metric_record.timestamp
         emit_value.plugin = 'nginx-plus'
-        emit_value.values = metric_record.metric_value
+        emit_value.values = [metric_record.metric_value]
         emit_value.point_type = metric_record.metric_name
         emit_value.plugin_instance = metric_record.instance_id
         emit_value.plugin_instance += '[{dimensions}]'.format(dimensions=metric_record.dimensions)
@@ -89,29 +90,98 @@ DEFAULT_STREAM_UPSTREAM_METRICS = [
     MetricDefinition('stream.upstreams.connections', 'guage', 'connections')
 ]
 
-SERVER_ZONE_METRICS = []
+SERVER_ZONE_METRICS = [
+    MetricDefinition('server.zone.processing', 'guage', 'connections'),
+    MetricDefinition('server.zone.discarded', 'guage', 'discarded'),
+    MetricDefinition('server.zone.responses.total', 'guage', 'responses.total'),
+    MetricDefinition('server.zone.responses.1xx', 'guage', 'responses.1xx'),
+    MetricDefinition('server.zone.responses.2xx', 'guage', 'responses.2xx'),
+    MetricDefinition('server.zone.responses.3xx', 'guage', 'responses.3xx'),
+    MetricDefinition('server.zone.responses.4xx', 'guage', 'responses.4xx'),
+    MetricDefinition('server.zone.responses.5xx', 'guage', 'responses.5xx'),
+    MetricDefinition('server.zone.bytes.received', 'guage', 'received'),
+    MetricDefinition('server.zone.bytes.sent', 'guage', 'sent')
+]
 
-MEMORY_ZONE_METRICS = []
+MEMORY_ZONE_METRICS = [
+    MetricDefinition('zone.pages.used', 'guage', 'pages.used'),
+    MetricDefinition('zone.pages.free', 'guage', 'pages.free')
+]
 
-UPSTREAM_METRICS = []
+UPSTREAM_METRICS = [
+    MetricDefinition('upstreams.active', 'guage', 'active'),
+    MetricDefinition('upstreams.responses.total', 'guage', 'responses.total'),
+    MetricDefinition('upstreams.responses.1xx', 'guage', 'responses.1xx'),
+    MetricDefinition('upstreams.responses.2xx', 'guage', 'responses.2xx'),
+    MetricDefinition('upstreams.responses.3xx', 'guage', 'responses.3xx'),
+    MetricDefinition('upstreams.responses.4xx', 'guage', 'responses.4xx'),
+    MetricDefinition('upstreams.responses.5xx', 'guage', 'responses.5xx'),
+    MetricDefinition('upstreams.fails', 'guage', 'fails'),
+    MetricDefinition('upstreams.unavailable', 'guage', 'unavail'),
+    MetricDefinition('upstreams.health.checks.checks', 'guage', 'health_checks.checks'),
+    MetricDefinition('upstreams.health.checks.fails', 'guage', 'health_checks.fails'),
+    MetricDefinition('upstreams.health.checks.unhealthy', 'guage', 'health_checks.unhealthy')
+]
 
-CACHE_METRICS = []
+CACHE_METRICS = [
+    MetricDefinition('caches.size', 'guage', 'size'),
+    MetricDefinition('caches.size.max', 'guage', 'max_size'),
+    MetricDefinition('caches.hits', 'guage', 'hit.responses'),
+    MetricDefinition('caches.misses', 'guage', 'miss.responses')
+]
 
-STREAM_SERVER_ZONE_METRICS = []
+STREAM_SERVER_ZONE_METRICS = [
+    MetricDefinition('stream.server.zone.processing', 'guage', 'processing'),
+    MetricDefinition('stream.server.zone.session.1xx', 'guage', 'sessions.1xx'),
+    MetricDefinition('stream.server.zone.sessions.2xx', 'guage', 'sessions.2xx'),
+    MetricDefinition('stream.server.zone.sessions.3xx', 'guage', 'sessions.3xx'),
+    MetricDefinition('stream.server.zone.sessions.4xx', 'guage', 'sessions.4xx'),
+    MetricDefinition('stream.server.zone.sessions.5xx', 'guage', 'sessions.5xx'),
+    MetricDefinition('stream.server.zone.received', 'guage', 'received'),
+    MetricDefinition('stream.server.zone.sent', 'guage', 'sent'),
+    MetricDefinition('stream.server.zone.discarded', 'guage', 'discarded')
+]
 
-STREAM_UPSTREAM_METRICS = []
+STREAM_UPSTREAM_METRICS = [
+    MetricDefinition('stream.upstreams.active', 'guage', 'active'),
+    MetricDefinition('stream.upstreams.connections.max', 'guage', 'max_conns'),
+    MetricDefinition('stream.upstreams.responses.total', 'guage', 'responses.total'),
+    MetricDefinition('stream.upstreams.responses.1xx', 'guage', 'responses.1xx'),
+    MetricDefinition('stream.upstreams.responses.2xx', 'guage', 'responses.2xx'),
+    MetricDefinition('stream.upstreams.responses.3xx', 'guage', 'responses.3xx'),
+    MetricDefinition('stream.upstreams.responses.4xx', 'guage', 'responses.4xx'),
+    MetricDefinition('stream.upstreams.responses.5xx', 'guage', 'responses.5xx'),
+    MetricDefinition('stream.upstreams.bytes.sent', 'guage', 'sent'),
+    MetricDefinition('stream.upstreams.bytes.received', 'guage', 'received'),
+    MetricDefinition('stream.upstreams.fails', 'guage', 'fails'),
+    MetricDefinition('stream.upstreams.unavailable', 'guage', 'unavail'),
+    MetricDefinition('stream.upstreams.health.checks.checks', 'guage', 'health_checks.checks'),
+    MetricDefinition('stream.upstreams.health.checks.fails', 'guage', 'health_checks.fails'),
+    MetricDefinition('stream.upstreams.health.checks.unhealthy', 'guage', 'health_checks.unhealthy')
+]
 
 class NginxPlusPlugin:
     def __init__(self):
         self.nginx_agent = None
-        self.instance_id = None
         self.sink = None
         self.emitters = []
+
+        self._instance_id = None
+
+
+    @property
+    def instance_id(self):
+        if not self._instance_id:
+            status_json = self.nginx_agent.get_status()
+            self._instance_id = _reduce_to_path(status_json, 'address')
+        return self._instance_id
 
     def config_callback(self, conf):
         '''
         Configure the plugin with the configuration provided by collectd.
         '''
+        LOGGER.info('Starting plugin configuration')
+
         status_ip = None
         status_port = None
 
@@ -122,17 +192,23 @@ class NginxPlusPlugin:
                 status_ip = node.values[0]
             elif node.key == STATUS_PORT:
                 status_port = node.values[0]
-            elif node.key == CACHE:
+            elif self._check_config_metric_group_enabled(node, CACHE):
+                self._log_emitter_group_enabled(CACHE)
                 self.emitters.append(MetricEmitter(self._emit_cache_metrics, CACHE_METRICS))
-            elif node.key == UPSTREAM:
+            elif self._check_config_metric_group_enabled(node, UPSTREAM):
+                self._log_emitter_group_enabled(UPSTREAM)
                 self.emitters.append(MetricEmitter(self._emit_upstreams_metrics, UPSTREAM_METRICS))
-            elif node.key == MEMORY_ZONE:
+            elif self._check_config_metric_group_enabled(node, MEMORY_ZONE):
+                self._log_emitter_group_enabled(MEMORY_ZONE)
                 self.emitters.append(MetricEmitter(self._emit_memory_zone_metrics, MEMORY_ZONE_METRICS))
-            elif node.key == SERVER_ZONE:
+            elif self._check_config_metric_group_enabled(node, SERVER_ZONE):
+                self._log_emitter_group_enabled(SERVER_ZONE)
                 self.emitters.append(MetricEmitter(self._emit_server_zone_metrics, SERVER_ZONE_METRICS))
-            elif node.key == STREAM_UPSTREAM:
+            elif self._check_config_metric_group_enabled(node, STREAM_UPSTREAM):
+                self._log_emitter_group_enabled(STREAM_UPSTREAM)
                 self.emitters.append(MetricEmitter(self._emit_stream_upstreams_metrics, STREAM_UPSTREAM_METRICS))
-            elif node.key == STREAM_SERVER_ZONE:
+            elif self._check_config_metric_group_enabled(node, STREAM_SERVER_ZONE):
+                self._log_emitter_group_enabled(STREAM_SERVER_ZONE)
                 self.emitters.append(MetricEmitter(self._emit_stream_server_zone_metrics, STREAM_SERVER_ZONE_METRICS))
 
         # Default metric emitters
@@ -144,8 +220,8 @@ class NginxPlusPlugin:
 
         self.sink = MetricSink()
         self.nginx_agent = NginxStatusAgent(status_ip, status_port)
-        self.instance_id = '{}:{}'.format(status_ip, str(status_port))
 
+        LOGGER.debug('Finished configuration. Reading status from %s:%s', status_ip, status_port)
 
     def read_callback(self):
         '''
@@ -154,36 +230,54 @@ class NginxPlusPlugin:
         If an exception is thrown the plugin will be skipped for an
         increasing amount of time until it returns to normal.
         '''
-        status_json = self.nginx_agent.get_status()
-        for emitter in self.emitters:
-            emitter.emit(status_json, self.sink)
+        if self.instance_id:
+            LOGGER.debug('Starting read')
+            status_json = self.nginx_agent.get_status()
+            for emitter in self.emitters:
+                emitter.emit(status_json, self.sink)
+        else:
+            LOGGER.warning('Skipping read, instance id is not set')
 
     def _emit_top_level_metrics(self, status_json, metrics, sink):
-        dimensions = {'nginx.version' : self._reduce_to_path(status_json, 'nginx_version')}
+        LOGGER.debug('Emitting top-level metrics')
+
+        dimensions = {'nginx.version' : _reduce_to_path(status_json, 'nginx_version')}
         self._fetch_and_emit_metrics(status_json, metrics, dimensions, sink)
 
     def _emit_server_zone_metrics(self, status_json, metrics, sink):
-        server_zones_obj = self._reduce_to_path(status_json, 'server_zones')
+        LOGGER.debug('Emitting server-zone metrics')
+
+        server_zones_obj = _reduce_to_path(status_json, 'server_zones')
         self._build_container_keyed_metrics(server_zones_obj, 'server.zone.name', metrics, sink)
 
     def _emit_upstreams_metrics(self, status_json, metrics, sink):
-        upstreams_obj = self._reduce_to_path(status_json, 'upstreams')
+        LOGGER.debug('Emitting upstreams metrics')
+
+        upstreams_obj = _reduce_to_path(status_json, 'upstreams')
         self._build_container_keyed_peer_metrics(upstreams_obj, 'upstream.name', 'upstream.peer.name', metrics, sink)
 
     def _emit_stream_server_zone_metrics(self, status_json, metrics, sink):
-        server_zones_obj = self._reduce_to_path(status_json, 'stream.server_zones')
+        LOGGER.debug('Emitting stream-server-zone metrics')
+
+        server_zones_obj = _reduce_to_path(status_json, 'stream.server_zones')
         self._build_container_keyed_metrics(server_zones_obj, 'stream.server.zone.name', metrics, sink)
 
     def _emit_stream_upstreams_metrics(self, status_json, metrics, sink):
-        stream_upstreams_obj = self._reduce_to_path(status_json, 'stream.upstreams')
+        LOGGER.debug('Emitting stream-upstreams metrics')
+
+        stream_upstreams_obj = _reduce_to_path(status_json, 'stream.upstreams')
         self._build_container_keyed_peer_metrics(stream_upstreams_obj, 'stream.upstream.name', 'stream.upstream.peer.name', metrics, sink)
 
     def _emit_memory_zone_metrics(self, status_json, metrics, sink):
-        slab_obj = self._reduce_to_path(status_json, 'slabs')
+        LOGGER.debug('Emitting memory-zone metrics')
+
+        slab_obj = _reduce_to_path(status_json, 'slabs')
         self._build_container_keyed_metrics(slab_obj, 'memory.zone.name', metrics, sink)
 
     def _emit_cache_metrics(self, status_json, metrics, sink):
-        cache_obj = self._reduce_to_path(status_json, 'caches')
+        LOGGER.debug('Emitting cache metrics')
+
+        cache_obj = _reduce_to_path(status_json, 'caches')
         self._build_container_keyed_metrics(cache_obj, 'cache.name', metrics, sink)
 
     def _build_container_keyed_metrics(self, containers_obj, container_dimension_name, metrics, sink):
@@ -199,24 +293,48 @@ class NginxPlusPlugin:
                 # Each container is has multiple peer servers, this is where the metric values are pulled from
                 for peer in container['peers']:
                     # Get the dimensions from each peer server
-                    dimensions = {container_dimension_name : container_name, peer_dimension_name : self._reduce_to_path(peer, 'name')}
+                    dimensions = {container_dimension_name : container_name, peer_dimension_name : _reduce_to_path(peer, 'name')}
                     self._fetch_and_emit_metrics(peer, metrics, dimensions, sink)
 
     def _fetch_and_emit_metrics(self, scoped_obj, metrics, dimensions, sink):
         for metric in metrics:
-            metric_value = self._reduce_to_path(scoped_obj, metric.scoped_object_key)
+            metric_value = _reduce_to_path(scoped_obj, metric.scoped_object_key)
             if metric_value is not None:
-                record = MetricRecord(metric.name,metric.metric_type, metric_value, self.instance_id, dimensions, time.time())
-                sink.emit(MetricRecord(metric.name,metric.metric_type, metric_value, self.instance_id, dimensions, time.time()))
+                sink.emit(MetricRecord(metric.name, metric.metric_type, metric_value, self.instance_id, dimensions, time.time()))
 
-    # Copied from collectd-elasticsearch
-    def _reduce_to_path(self, obj, path):
-        try:
-            if type(path) in (str, unicode):
-                path = path.split('.')
-            return reduce(lambda x, y: x[y], path, obj)
-        except:
-            return None
+    def _check_config_metric_group_enabled(self, config_node, key):
+        return config_node.key == key and self._str_to_bool(config_node.value[0])
+
+    def _str_to_bool(value):
+        '''
+        Python 2.x does not have a casting mechanism for booleans.  The built in
+        bool() will return true for any string with a length greater than 0.  It
+        does not cast a string with the text "true" or "false" to the
+        corresponding bool value.  This method is a casting function.  It is
+        insensitive to case and leading/trailing spaces.  An Exception is raised
+        if a cast can not be made.
+
+        This was copied from docker-collectd-plugin.py
+        '''
+        value = str(value).strip().lower()
+        if value == 'true':
+            return True
+        elif value == 'false':
+            return False
+        else:
+            raise ValueError('Unable to cast value (%s) to boolean' % value)
+
+    def _log_emitter_group_enabled(self, emitter_group):
+        LOGGER.debug('%s enabled, adding emitters', emitter_group)
+
+# Copied from collectd-elasticsearch
+def _reduce_to_path(obj, path):
+    try:
+        if type(path) in (str, unicode):
+            path = path.split('.')
+        return reduce(lambda x, y: x[y], path, obj)
+    except:
+        return None
 
 
 class NginxStatusAgent:
@@ -232,6 +350,62 @@ class NginxStatusAgent:
         '''
         return requests.get(status_url)
 
+
+class CollectdLogHandler(logging.Handler):
+    '''
+    Log handler to forward statements to collectd
+
+    A custom log handler that forwards log messages raised
+    at level debug, info, warning, and error
+    to collectd's built in logging.  Suppresses extraneous
+    info and debug statements using a "verbose" boolean
+
+    Inherits from logging.Handler
+    This was copied from docker-collectd-plugin.py
+
+    Arguments
+        plugin -- name of the plugin (default 'unknown')
+        verbose -- enable/disable verbose messages (default False)
+    '''
+
+    def __init__(self, plugin='unknown', debug=False):
+        '''
+        Initializes CollectdLogHandler
+        Arguments
+            plugin -- string name of the plugin (default 'unknown')
+            debug  -- boolean to enable debug level logging, defaults to false
+        '''
+        self.plugin = plugin
+        self.debug = debug
+
+        logging.Handler.__init__(self, level=logging.NOTSET)
+
+    def emit(self, record):
+        '''
+        Emits a log record to the appropriate collectd log function
+
+        Arguments
+        record -- str log record to be emitted
+        '''
+        try:
+            if record.msg is not None:
+                if record.levelname == 'ERROR':
+                    collectd.error('%s : %s' % (self.plugin, record.msg))
+                elif record.levelname == 'WARNING':
+                    collectd.warning('%s : %s' % (self.plugin, record.msg))
+                elif record.levelname == 'INFO':
+                    collectd.info('%s : %s' % (self.plugin, record.msg))
+                elif record.levelname == 'DEBUG' and self.debug:
+                    collectd.debug('%s : %s' % (self.plugin, record.msg))
+        except Exception as e:
+            collectd.warning(('{p} [ERROR]: Failed to write log statement due '
+                              'to: {e}').format(p=self.plugin, e=e))
+
+# Set up logging
+LOGGER = logging.getLogger(__name__)
+LOGGER.setLevel(logging.DEBUG)
+LOGGER.propagate = False
+LOGGER.addHandler(CollectdLogHandler('docker', False))
 
 if __name__ == 'main':
     plugin = NginxPlusPlugin()
