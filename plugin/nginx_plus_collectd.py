@@ -67,9 +67,8 @@ DEFAULT_CONNECTION_METRICS = [
     MetricDefinition('connections.accepted', 'guage', 'connections.accepted'),
     MetricDefinition('connections.dropped', 'guage', 'connections.dropped'),
     MetricDefinition('connections.idle', 'guage', 'connections.idle'),
-    MetricDefinition('connections.failed', 'guage', 'connections.failed'),
-    MetricDefinition('ssl.handshakes.successful', 'guage', 'ssl.handshakes.successful'),
-    MetricDefinition('ssl.handshakes.failed', 'guage', 'ssl.handshakes.failed'),
+    MetricDefinition('ssl.handshakes.successful', 'guage', 'ssl.handshakes.handshakes'),
+    MetricDefinition('ssl.handshakes.failed', 'guage', 'ssl.handshakes.handshakes_failed'),
     MetricDefinition('requests.total', 'guage', 'requests.total'),
     MetricDefinition('requests.current', 'guage', 'requests.current'),
 ]
@@ -79,7 +78,7 @@ DEFAULT_SERVER_ZONE_METRICS = [
 ]
 
 DEFAULT_UPSTREAM_METRICS = [
-    MetricDefinition('upstream.requests', 'guage', 'requests')
+    MetricDefinition('upstreams.requests', 'guage', 'requests')
 ]
 
 DEFAULT_STREAM_SERVER_ZONE_METRICS = [
@@ -91,7 +90,7 @@ DEFAULT_STREAM_UPSTREAM_METRICS = [
 ]
 
 SERVER_ZONE_METRICS = [
-    MetricDefinition('server.zone.processing', 'guage', 'connections'),
+    MetricDefinition('server.zone.processing', 'guage', 'processing'),
     MetricDefinition('server.zone.discarded', 'guage', 'discarded'),
     MetricDefinition('server.zone.responses.total', 'guage', 'responses.total'),
     MetricDefinition('server.zone.responses.1xx', 'guage', 'responses.1xx'),
@@ -132,9 +131,7 @@ CACHE_METRICS = [
 
 STREAM_SERVER_ZONE_METRICS = [
     MetricDefinition('stream.server.zone.processing', 'guage', 'processing'),
-    MetricDefinition('stream.server.zone.session.1xx', 'guage', 'sessions.1xx'),
     MetricDefinition('stream.server.zone.sessions.2xx', 'guage', 'sessions.2xx'),
-    MetricDefinition('stream.server.zone.sessions.3xx', 'guage', 'sessions.3xx'),
     MetricDefinition('stream.server.zone.sessions.4xx', 'guage', 'sessions.4xx'),
     MetricDefinition('stream.server.zone.sessions.5xx', 'guage', 'sessions.5xx'),
     MetricDefinition('stream.server.zone.received', 'guage', 'received'),
@@ -145,12 +142,6 @@ STREAM_SERVER_ZONE_METRICS = [
 STREAM_UPSTREAM_METRICS = [
     MetricDefinition('stream.upstreams.active', 'guage', 'active'),
     MetricDefinition('stream.upstreams.connections.max', 'guage', 'max_conns'),
-    MetricDefinition('stream.upstreams.responses.total', 'guage', 'responses.total'),
-    MetricDefinition('stream.upstreams.responses.1xx', 'guage', 'responses.1xx'),
-    MetricDefinition('stream.upstreams.responses.2xx', 'guage', 'responses.2xx'),
-    MetricDefinition('stream.upstreams.responses.3xx', 'guage', 'responses.3xx'),
-    MetricDefinition('stream.upstreams.responses.4xx', 'guage', 'responses.4xx'),
-    MetricDefinition('stream.upstreams.responses.5xx', 'guage', 'responses.5xx'),
     MetricDefinition('stream.upstreams.bytes.sent', 'guage', 'sent'),
     MetricDefinition('stream.upstreams.bytes.received', 'guage', 'received'),
     MetricDefinition('stream.upstreams.fails', 'guage', 'fails'),
@@ -303,9 +294,9 @@ class NginxPlusPlugin:
                 sink.emit(MetricRecord(metric.name, metric.metric_type, metric_value, self.instance_id, dimensions, time.time()))
 
     def _check_config_metric_group_enabled(self, config_node, key):
-        return config_node.key == key and self._str_to_bool(config_node.value[0])
+        return config_node.key == key and self._str_to_bool(config_node.values[0])
 
-    def _str_to_bool(value):
+    def _str_to_bool(self, value):
         '''
         Python 2.x does not have a casting mechanism for booleans.  The built in
         bool() will return true for any string with a length greater than 0.  It
