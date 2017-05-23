@@ -17,7 +17,7 @@ from plugin.nginx_plus_collectd import NginxPlusPlugin, MetricRecord, MetricDefi
                                         DEFAULT_STREAM_UPSTREAM_METRICS, SERVER_ZONE_METRICS, SERVER_ZONE,\
                                         MEMORY_ZONE_METRICS, MEMORY_ZONE, UPSTREAM_METRICS, UPSTREAM,\
                                         CACHE_METRICS, CACHE, STREAM_SERVER_ZONE_METRICS, STREAM_SERVER_ZONE,\
-                                        STREAM_UPSTREAM_METRICS, STREAM_UPSTREAM, STATUS_IP, STATUS_PORT
+                                        STREAM_UPSTREAM_METRICS, STREAM_UPSTREAM, STATUS_HOST, STATUS_PORT
 
 class NginxCollectdTest(TestCase):
     def setUp(self):
@@ -160,12 +160,12 @@ class NginxCollectdTest(TestCase):
         self.assertEquals(len(expected_metric_names), len(actual_metric_names))
         self.assertItemsEqual(expected_metric_names, actual_metric_names)
 
-    def test_config_callback_status_ip_port(self):
+    def test_config_callback_status_host_port(self):
         expected_ip = '192.168.0.24'
         expected_port = '411'
 
         mock_config_ip_child = Mock()
-        mock_config_ip_child.key = STATUS_IP
+        mock_config_ip_child.key = STATUS_HOST
         mock_config_ip_child.values = [expected_ip]
 
         mock_config_port_child = Mock()
@@ -177,7 +177,7 @@ class NginxCollectdTest(TestCase):
 
         self.plugin.config_callback(mock_config)
 
-        self.assertEquals(expected_ip, self.plugin.nginx_agent.status_ip)
+        self.assertEquals(expected_ip, self.plugin.nginx_agent.status_host)
         self.assertEquals(expected_port, self.plugin.nginx_agent.status_port)
 
     def test_read_callback(self):

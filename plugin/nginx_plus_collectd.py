@@ -1,4 +1,6 @@
 #!/usr/bin/env python
+import os
+import sys
 import time
 import logging
 import requests
@@ -38,7 +40,7 @@ class MetricSink:
         emit_value.time = metric_record.timestamp
         emit_value.plugin = 'nginx-plus'
         emit_value.values = [metric_record.metric_value]
-        emit_value.point_type = metric_record.metric_name
+        emit_value.type = metric_record.metric_name
         emit_value.plugin_instance = metric_record.instance_id
         emit_value.plugin_instance += '[{dimensions}]'.format(dimensions=metric_record.dimensions)
 
@@ -51,7 +53,7 @@ class MetricSink:
         emit_value.dispatch()
 
 # Server configueration flags
-STATUS_IP = 'StatusIp'
+STATUS_HOST = 'StatusIp'
 STATUS_PORT = 'StatusPort'
 
 # Metric group configuration flags
@@ -164,7 +166,8 @@ class NginxPlusPlugin:
     def instance_id(self):
         if not self._instance_id:
             status_json = self.nginx_agent.get_status()
-            self._instance_id = _reduce_to_path(status_json, 'address')
+            if status_json:
+                self._instance_id = _reduce_to_path(status_json, 'address')
         return self._instance_id
 
     def config_callback(self, conf):
@@ -173,14 +176,14 @@ class NginxPlusPlugin:
         '''
         LOGGER.info('Starting plugin configuration')
 
-        status_ip = None
+        status_host = None
         status_port = None
 
         # Iterate the configueration values, pickup the status endpoint info
         # and creating any specified opt-in metric emitters
         for node in conf.children:
-            if node.key == STATUS_IP:
-                status_ip = node.values[0]
+            if node.key == STATUS_HOST:
+                status_host = node.values[0]
             elif node.key == STATUS_PORT:
                 status_port = node.values[0]
             elif self._check_config_metric_group_enabled(node, CACHE):
@@ -210,9 +213,9 @@ class NginxPlusPlugin:
         self.emitters.append(MetricEmitter(self._emit_stream_upstreams_metrics, DEFAULT_STREAM_UPSTREAM_METRICS))
 
         self.sink = MetricSink()
-        self.nginx_agent = NginxStatusAgent(status_ip, status_port)
+        self.nginx_agent = NginxStatusAgent(status_host, status_port)
 
-        LOGGER.debug('Finished configuration. Reading status from %s:%s', status_ip, status_port)
+        LOGGER.debug('Finished configuration. Reading status from {}:{}'.format(status_host, status_port))
 
     def read_callback(self):
         '''
@@ -221,13 +224,19 @@ class NginxPlusPlugin:
         If an exception is thrown the plugin will be skipped for an
         increasing amount of time until it returns to normal.
         '''
-        if self.instance_id:
-            LOGGER.debug('Starting read')
-            status_json = self.nginx_agent.get_status()
-            for emitter in self.emitters:
-                emitter.emit(status_json, self.sink)
-        else:
+        LOGGER.debug('Starting read')
+
+        if not self.instance_id:
             LOGGER.warning('Skipping read, instance id is not set')
+            return
+
+        status_json = self.nginx_agent.get_status()
+        if not status_json:
+            LOGGER.warning('Skipping read, failed to retrieve status JSON')
+            return
+
+        for emitter in self.emitters:
+            emitter.emit(status_json, self.sink)
 
     def _emit_top_level_metrics(self, status_json, metrics, sink):
         LOGGER.debug('Emitting top-level metrics')
@@ -316,7 +325,7 @@ class NginxPlusPlugin:
             raise ValueError('Unable to cast value (%s) to boolean' % value)
 
     def _log_emitter_group_enabled(self, emitter_group):
-        LOGGER.debug('%s enabled, adding emitters', emitter_group)
+        LOGGER.debug('{} enabled, adding emitters'.format(emitter_group))
 
 # Copied from collectd-elasticsearch
 def _reduce_to_path(obj, path):
@@ -329,17 +338,26 @@ def _reduce_to_path(obj, path):
 
 
 class NginxStatusAgent:
-    def __init__(self, status_ip=None, status_port=None):
-        self.status_ip = status_ip or '127.0.0.1'
+    def __init__(self, status_host=None, status_port=None):
+        self.status_host = status_host or '127.0.0.1'
         self.status_port = status_port or 8080
 
-        self.status_url = '{}:{}/status'.format(self.status_ip, str(self.status_port))
+        self.status_url = 'http://{}:{}/status'.format(self.status_host, str(self.status_port))
 
-    def _get_status(self):
+    def get_status(self):
         '''
         Fetch the server status JSON.
         '''
-        return requests.get(status_url)
+        status = None
+        try:
+            response = requests.get(self.status_url)
+            if response.status_code == requests.codes.ok:
+                status = response.json()
+            else:
+                LOGGER.error('Unexpected status code: {}, received when fetching status from {}'.format(response.status_code, self.status_url))
+        except Exception as e:
+            LOGGER.exception('Failed to retrieve status from {}. {}'.format(self.status_url, e))
+        return status
 
 
 class CollectdLogHandler(logging.Handler):
@@ -392,16 +410,100 @@ class CollectdLogHandler(logging.Handler):
             collectd.warning(('{p} [ERROR]: Failed to write log statement due '
                               'to: {e}').format(p=self.plugin, e=e))
 
+
+class CollectdMock:
+    def __init__(self):
+        self.value_mock = CollectdValuesMock
+
+    def debug(self, msg):
+        print 'DEBUG: {}'.format(msg)
+
+    def info(self, msg):
+        print 'INFO: {}'.format(msg)
+
+    def notice(self, msg):
+        print 'NOTICE: {}'.format(msg)
+
+    def warning(self, msg):
+        print 'WARN: {}'.format(msg)
+
+    def error(self, msg):
+        print 'ERROR: {}'.format(msg)
+        sys.exit(1)
+
+    def Values(self):
+        return (self.value_mock)()
+
+
+class CollectdValuesMock:
+    def dispatch(self):
+        if not getattr(self, 'host', None):
+            self.host = os.environ.get('COLLECTD_HOSTNAME', 'localhost')
+
+        identifier = '%s/%s' % (self.host, self.plugin)
+        if getattr(self, 'plugin_instance', None):
+            identifier += '-' + self.plugin_instance
+        identifier += '/' + self.type
+
+        if getattr(self, 'type_instance', None):
+            identifier += '-' + self.type_instance
+
+        print 'PUTVAL', identifier, ':'.join(map(str, [int(self.time)] + self.values))
+
+    def __str__(self):
+        attrs = []
+        for name in dir(self):
+            if not name.startswith('_') and name is not 'dispatch':
+                attrs.append("{0}={1}".format(name, getattr(self, name)))
+        return "<CollectdValues {0}>".format(' '.join(attrs))
+
+class CollectdConfigMock:
+    def __init__(self, children=None):
+        self.children = children or []
+
+class CollectdConfigChildMock:
+    def __init__(self, key, values):
+        self.key = key
+        self.values = values
+
+
 # Set up logging
 LOGGER = logging.getLogger(__name__)
 LOGGER.setLevel(logging.DEBUG)
 LOGGER.propagate = False
-LOGGER.addHandler(CollectdLogHandler('docker', False))
+LOGGER.addHandler(CollectdLogHandler('nginx-plus-collectd', False))
 
-if __name__ == 'main':
+if __name__ == '__main__':
+    status_host = sys.argv[1] if len(sys.argv) > 1 else 'demo.nginx.com'
+    status_port = sys.argv[2] if len(sys.argv) > 2 else 80
+
+    collectd = CollectdMock()
+
+    mock_config_ip_child = CollectdConfigChildMock(STATUS_HOST, [status_host])
+    mock_config_port_child = CollectdConfigChildMock(STATUS_PORT, [status_port])
+
+    mock_config_server_zone_child = CollectdConfigChildMock(SERVER_ZONE, ['true'])
+    mock_config_memory_zone_child = CollectdConfigChildMock(MEMORY_ZONE, ['true'])
+    mock_config_upstream_child = CollectdConfigChildMock(UPSTREAM, ['true'])
+    mock_config_cache_child = CollectdConfigChildMock(CACHE, ['true'])
+    mock_config_stream_server_zone_child = CollectdConfigChildMock(STREAM_SERVER_ZONE, ['true'])
+    mock_config_stream_upstream_child = CollectdConfigChildMock(STREAM_UPSTREAM, ['true'])
+
+    mock_config = CollectdConfigMock([mock_config_ip_child,
+                                      mock_config_port_child,
+                                      mock_config_server_zone_child,
+                                      mock_config_memory_zone_child,
+                                      mock_config_upstream_child,
+                                      mock_config_cache_child,
+                                      mock_config_stream_server_zone_child,
+                                      mock_config_stream_upstream_child])
+
     plugin = NginxPlusPlugin()
+    plugin.config_callback(mock_config)
 
-    # TODO
+    while True:
+        plugin.read_callback()
+        time.sleep(5)
 else:
     import collectd
 
