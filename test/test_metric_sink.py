@@ -21,7 +21,7 @@ class MetricSinkTest(TestCase):
         metric_instance_id = 'my_plugin'
         metric_dimensions = {'nginx.version' : '1.11.10'}
 
-        expected_type = 'guage'
+        expected_type = 'counter'
         expected_values = [metric_value]
         expected_plugin_instance = '{}[{}]'.format(metric_instance_id, metric_dimensions)
         expected_type_instance = 'connections.accepted'

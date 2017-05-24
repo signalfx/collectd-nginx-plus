@@ -67,91 +67,91 @@ STREAM_UPSTREAM = 'StreamUpstream'
 
 # Metric groups
 DEFAULT_CONNECTION_METRICS = [
-    MetricDefinition('connections.accepted', 'guage', 'connections.accepted'),
-    MetricDefinition('connections.dropped', 'guage', 'connections.dropped'),
-    MetricDefinition('connections.idle', 'guage', 'connections.idle'),
-    MetricDefinition('ssl.handshakes.successful', 'guage', 'ssl.handshakes.handshakes'),
-    MetricDefinition('ssl.handshakes.failed', 'guage', 'ssl.handshakes.handshakes_failed'),
-    MetricDefinition('requests.total', 'guage', 'requests.total'),
-    MetricDefinition('requests.current', 'guage', 'requests.current'),
+    MetricDefinition('connections.accepted', 'counter', 'connections.accepted'),
+    MetricDefinition('connections.dropped', 'counter', 'connections.dropped'),
+    MetricDefinition('connections.idle', 'counter', 'connections.idle'),
+    MetricDefinition('ssl.handshakes.successful', 'counter', 'ssl.handshakes.handshakes'),
+    MetricDefinition('ssl.handshakes.failed', 'counter', 'ssl.handshakes.handshakes_failed'),
+    MetricDefinition('requests.total', 'counter', 'requests.total'),
+    MetricDefinition('requests.current', 'counter', 'requests.current'),
 ]
 
 DEFAULT_SERVER_ZONE_METRICS = [
-    MetricDefinition('server.zone.requests', 'guage', 'requests')
+    MetricDefinition('server.zone.requests', 'counter', 'requests')
 ]
 
 DEFAULT_UPSTREAM_METRICS = [
-    MetricDefinition('upstreams.requests', 'guage', 'requests')
+    MetricDefinition('upstreams.requests', 'counter', 'requests')
 ]
 
 DEFAULT_STREAM_SERVER_ZONE_METRICS = [
-    MetricDefinition('stream.server.zone.connections', 'guage', 'connections')
+    MetricDefinition('stream.server.zone.connections', 'counter', 'connections')
 ]
 
 DEFAULT_STREAM_UPSTREAM_METRICS = [
-    MetricDefinition('stream.upstreams.connections', 'guage', 'connections')
+    MetricDefinition('stream.upstreams.connections', 'counter', 'connections')
 ]
 
 SERVER_ZONE_METRICS = [
-    MetricDefinition('server.zone.processing', 'guage', 'processing'),
-    MetricDefinition('server.zone.discarded', 'guage', 'discarded'),
-    MetricDefinition('server.zone.responses.total', 'guage', 'responses.total'),
-    MetricDefinition('server.zone.responses.1xx', 'guage', 'responses.1xx'),
-    MetricDefinition('server.zone.responses.2xx', 'guage', 'responses.2xx'),
-    MetricDefinition('server.zone.responses.3xx', 'guage', 'responses.3xx'),
-    MetricDefinition('server.zone.responses.4xx', 'guage', 'responses.4xx'),
-    MetricDefinition('server.zone.responses.5xx', 'guage', 'responses.5xx'),
-    MetricDefinition('server.zone.bytes.received', 'guage', 'received'),
-    MetricDefinition('server.zone.bytes.sent', 'guage', 'sent')
+    MetricDefinition('server.zone.processing', 'counter', 'processing'),
+    MetricDefinition('server.zone.discarded', 'counter', 'discarded'),
+    MetricDefinition('server.zone.responses.total', 'counter', 'responses.total'),
+    MetricDefinition('server.zone.responses.1xx', 'counter', 'responses.1xx'),
+    MetricDefinition('server.zone.responses.2xx', 'counter', 'responses.2xx'),
+    MetricDefinition('server.zone.responses.3xx', 'counter', 'responses.3xx'),
+    MetricDefinition('server.zone.responses.4xx', 'counter', 'responses.4xx'),
+    MetricDefinition('server.zone.responses.5xx', 'counter', 'responses.5xx'),
+    MetricDefinition('server.zone.bytes.received', 'counter', 'received'),
+    MetricDefinition('server.zone.bytes.sent', 'counter', 'sent')
 ]
 
 MEMORY_ZONE_METRICS = [
-    MetricDefinition('zone.pages.used', 'guage', 'pages.used'),
-    MetricDefinition('zone.pages.free', 'guage', 'pages.free')
+    MetricDefinition('zone.pages.used', 'counter', 'pages.used'),
+    MetricDefinition('zone.pages.free', 'counter', 'pages.free')
 ]
 
 UPSTREAM_METRICS = [
-    MetricDefinition('upstreams.active', 'guage', 'active'),
-    MetricDefinition('upstreams.responses.total', 'guage', 'responses.total'),
-    MetricDefinition('upstreams.responses.1xx', 'guage', 'responses.1xx'),
-    MetricDefinition('upstreams.responses.2xx', 'guage', 'responses.2xx'),
-    MetricDefinition('upstreams.responses.3xx', 'guage', 'responses.3xx'),
-    MetricDefinition('upstreams.responses.4xx', 'guage', 'responses.4xx'),
-    MetricDefinition('upstreams.responses.5xx', 'guage', 'responses.5xx'),
-    MetricDefinition('upstreams.fails', 'guage', 'fails'),
-    MetricDefinition('upstreams.unavailable', 'guage', 'unavail'),
-    MetricDefinition('upstreams.health.checks.checks', 'guage', 'health_checks.checks'),
-    MetricDefinition('upstreams.health.checks.fails', 'guage', 'health_checks.fails'),
-    MetricDefinition('upstreams.health.checks.unhealthy', 'guage', 'health_checks.unhealthy')
+    MetricDefinition('upstreams.active', 'counter', 'active'),
+    MetricDefinition('upstreams.responses.total', 'counter', 'responses.total'),
+    MetricDefinition('upstreams.responses.1xx', 'counter', 'responses.1xx'),
+    MetricDefinition('upstreams.responses.2xx', 'counter', 'responses.2xx'),
+    MetricDefinition('upstreams.responses.3xx', 'counter', 'responses.3xx'),
+    MetricDefinition('upstreams.responses.4xx', 'counter', 'responses.4xx'),
+    MetricDefinition('upstreams.responses.5xx', 'counter', 'responses.5xx'),
+    MetricDefinition('upstreams.fails', 'counter', 'fails'),
+    MetricDefinition('upstreams.unavailable', 'counter', 'unavail'),
+    MetricDefinition('upstreams.health.checks.checks', 'counter', 'health_checks.checks'),
+    MetricDefinition('upstreams.health.checks.fails', 'counter', 'health_checks.fails'),
+    MetricDefinition('upstreams.health.checks.unhealthy', 'counter', 'health_checks.unhealthy')
 ]
 
 CACHE_METRICS = [
-    MetricDefinition('caches.size', 'guage', 'size'),
-    MetricDefinition('caches.size.max', 'guage', 'max_size'),
-    MetricDefinition('caches.hits', 'guage', 'hit.responses'),
-    MetricDefinition('caches.misses', 'guage', 'miss.responses')
+    MetricDefinition('caches.size', 'counter', 'size'),
+    MetricDefinition('caches.size.max', 'counter', 'max_size'),
+    MetricDefinition('caches.hits', 'counter', 'hit.responses'),
+    MetricDefinition('caches.misses', 'counter', 'miss.responses')
 ]
 
 STREAM_SERVER_ZONE_METRICS = [
-    MetricDefinition('stream.server.zone.processing', 'guage', 'processing'),
-    MetricDefinition('stream.server.zone.sessions.2xx', 'guage', 'sessions.2xx'),
-    MetricDefinition('stream.server.zone.sessions.4xx', 'guage', 'sessions.4xx'),
-    MetricDefinition('stream.server.zone.sessions.5xx', 'guage', 'sessions.5xx'),
-    MetricDefinition('stream.server.zone.received', 'guage', 'received'),
-    MetricDefinition('stream.server.zone.sent', 'guage', 'sent'),
-    MetricDefinition('stream.server.zone.discarded', 'guage', 'discarded')
+    MetricDefinition('stream.server.zone.processing', 'counter', 'processing'),
+    MetricDefinition('stream.server.zone.sessions.2xx', 'counter', 'sessions.2xx'),
+    MetricDefinition('stream.server.zone.sessions.4xx', 'counter', 'sessions.4xx'),
+    MetricDefinition('stream.server.zone.sessions.5xx', 'counter', 'sessions.5xx'),
+    MetricDefinition('stream.server.zone.received', 'counter', 'received'),
+    MetricDefinition('stream.server.zone.sent', 'counter', 'sent'),
+    MetricDefinition('stream.server.zone.discarded', 'counter', 'discarded')
 ]
 
 STREAM_UPSTREAM_METRICS = [
-    MetricDefinition('stream.upstreams.active', 'guage', 'active'),
-    MetricDefinition('stream.upstreams.connections.max', 'guage', 'max_conns'),
-    MetricDefinition('stream.upstreams.bytes.sent', 'guage', 'sent'),
-    MetricDefinition('stream.upstreams.bytes.received', 'guage', 'received'),
-    MetricDefinition('stream.upstreams.fails', 'guage', 'fails'),
-    MetricDefinition('stream.upstreams.unavailable', 'guage', 'unavail'),
-    MetricDefinition('stream.upstreams.health.checks.checks', 'guage', 'health_checks.checks'),
-    MetricDefinition('stream.upstreams.health.checks.fails', 'guage', 'health_checks.fails'),
-    MetricDefinition('stream.upstreams.health.checks.unhealthy', 'guage', 'health_checks.unhealthy')
+    MetricDefinition('stream.upstreams.active', 'counter', 'active'),
+    MetricDefinition('stream.upstreams.connections.max', 'counter', 'max_conns'),
+    MetricDefinition('stream.upstreams.bytes.sent', 'counter', 'sent'),
+    MetricDefinition('stream.upstreams.bytes.received', 'counter', 'received'),
+    MetricDefinition('stream.upstreams.fails', 'counter', 'fails'),
+    MetricDefinition('stream.upstreams.unavailable', 'counter', 'unavail'),
+    MetricDefinition('stream.upstreams.health.checks.checks', 'counter', 'health_checks.checks'),
+    MetricDefinition('stream.upstreams.health.checks.fails', 'counter', 'health_checks.fails'),
+    MetricDefinition('stream.upstreams.health.checks.unhealthy', 'counter', 'health_checks.unhealthy')
 ]
 
 class NginxPlusPlugin:
