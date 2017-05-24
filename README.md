@@ -16,7 +16,7 @@ The suggested location is `/usr/share/collectd/`.
 Within the plugin's `Module` block plugin-specific configuration options can be given.
 The available configuration options are detailed below.
 
-#####Configuration Options
+##### Configuration Options
 
 | Property | Description |
 |:--------|:-----------|
@@ -62,7 +62,7 @@ These metrics are published by default.
 | stream.server.zone.connections | stream.server.zone.name |
 | stream.upstreams.connections | stream.upstream.name, stream.upstream.peer.name |
 
-## Server Zone Metrics
+### Server Zone Metrics
 All server zone metrics are decorated with dimension `server.zone.name` .
 To include these metrics, add `ServerZone true` to the plugin configuration, e.g.
 ```apache
@@ -71,7 +71,6 @@ To include these metrics, add `ServerZone true` to the plugin configuration, e.g
     StatusPort 8080
     ServerZone true
   </Module>
-</Plugin>
 ```
 ##### Metrics
 * server.zone.processing
@@ -85,7 +84,7 @@ To include these metrics, add `ServerZone true` to the plugin configuration, e.g
 * server.zone.bytes.received
 * server.zone.bytes.sent
 
-## Memory Zone Metrics
+### Memory Zone Metrics
 All memory zone metrics are decorated with dimension `memory.zone.name` .
 To include these metrics, add `MemoryZone true` to the plugin configuration, e.g.
 ```apache
@@ -94,13 +93,12 @@ To include these metrics, add `MemoryZone true` to the plugin configuration, e.g
     StatusPort 8080
     MemoryZone true
   </Module>
-</Plugin>
 ```
 ##### Metrics
 * zone.pages.used
 * zone.pages.free
 
-## Upstream Metrics
+### Upstream Metrics
 All upstream metrics are decorated with dimensions `upstream.name` and `upstream.peer.name` .
 To include these metrics, add `Upstream true` to the plugin configuration, e.g.
 ```apache
@@ -109,7 +107,6 @@ To include these metrics, add `Upstream true` to the plugin configuration, e.g.
     StatusPort 8080
     Upstream true
   </Module>
-</Plugin>
 ```
 ##### Metrics
 * upstreams.active
@@ -125,7 +122,7 @@ To include these metrics, add `Upstream true` to the plugin configuration, e.g.
 * upstreams.health.checks.fails
 * upstreams.health.checks.unhealthy
 
-## Cache Metrics
+### Cache Metrics
 All cache metrics are decorated with dimension `cache.name` .
 To include these metrics, add `Cache true` to the plugin configuration, e.g.
 ```apache
@@ -134,7 +131,6 @@ To include these metrics, add `Cache true` to the plugin configuration, e.g.
     StatusPort 8080
     Cache true
   </Module>
-</Plugin>
 ```
 ##### Metrics
 * caches.size
@@ -142,7 +138,7 @@ To include these metrics, add `Cache true` to the plugin configuration, e.g.
 * caches.hits
 * caches.misses
 
-## Stream Server Zone Metrics
+### Stream Server Zone Metrics
 All stream server zone metrics are decorated with dimension `stream.server.zone.name` .
 To include these metrics, add `StreamServerZone true` to the plugin configuration, e.g.
 ```apache
@@ -151,7 +147,6 @@ To include these metrics, add `StreamServerZone true` to the plugin configuratio
     StatusPort 8080
     StreamServerZone true
   </Module>
-</Plugin>
 ```
 ##### Metrics
 * stream.server.zone.processing
@@ -162,7 +157,7 @@ To include these metrics, add `StreamServerZone true` to the plugin configuratio
 * stream.server.zone.sent
 * stream.server.zone.discarded
 
-## Stream Upstream Metrics
+### Stream Upstream Metrics
 All stream upstream metrics are decorated with dimensions `stream.upstream.name` and `stream.upstream.peer.name`.
 To include these metrics, add `StreamUpstream true` to the plugin configuration, e.g.
 ```apache
@@ -171,7 +166,6 @@ To include these metrics, add `StreamUpstream true` to the plugin configuration,
     StatusPort 8080
     StreamUpstream true
   </Module>
-</Plugin>
 ```
 ##### Metrics
 * stream.upstreams.active
@@ -183,3 +177,30 @@ To include these metrics, add `StreamUpstream true` to the plugin configuration,
 * stream.upstreams.health.checks.checks
 * stream.upstreams.health.checks.fails
 * stream.upstreams.health.checks.unhealthy
+
+## Development
+Before making changes to the plugin, it is highly recommended first create a virtual Python environment.
+This can be done with [virtualenv](https://virtualenv.pypa.io/en/stable/). This helps avoid dependency conflicts,
+preserves your global site-packages and helps catch missing dependencies in the pip requirements.txts.
+
+## Dependencies
+The dependencies needed for local development (running unit tests, etc.) are contained in `dev_requirements.txt` and
+can be installed via pip: `pip install -r dev_requirements.txt`.
+
+## Running Locally
+A quick way to run the plugin locally and consume from a rich data source is to configure it to read from the NGINX+
+demo: `./nginx_plus_collectd.py 'demo.nginx.com' 80`
+
+## Unit Tests
+Running the unit tests is done via a recipe in the `makefile`, the command: `make test`.
+The unit tests are run with [nose](http://nose.readthedocs.io/en/latest/) inside a virtual environment managed
+by [tox](https://pypi.python.org/pypi/tox). The `test_requirements.txt` contains all the testing dependencies and
+is used to pip install everything needed by the tests in the tox environments (tox installs these dependencies).
+
+## Code Cleanliness
+The `make check` command will run [pylint](https://www.pylint.org/) with standards defined in `pylintrc`. Having a
+slight drop in code rating is not a blocker for changes, but a significant drop should be addressed. This is a
+measurable way to enforce style and standards.
+
+## Cleanup
+Run `make clean` to remove artifacts leftover by tox and pylint.
