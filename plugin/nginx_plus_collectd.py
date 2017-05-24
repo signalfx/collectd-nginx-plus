@@ -494,7 +494,7 @@ class NginxStatusAgent:
     Helper class for interacting with a single NGINX+ instance.
     '''
     def __init__(self, status_host=None, status_port=None):
-        self.status_host = status_host or '127.0.0.1'
+        self.status_host = status_host or 'localhost'
         self.status_port = status_port or 8080
 
         self.status_url = 'http://{}:{}/status'.format(self.status_host, str(self.status_port))
