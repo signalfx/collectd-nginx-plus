@@ -6,20 +6,50 @@ import logging
 import requests
 
 class MetricDefinition:
+    '''
+    Struct for information needed to build a metric.
+
+    Constructor Arguements:
+        name: The name of the metric
+        metric_type: The kind of metric, e.g. guage or counter
+        scoped_object_key: A "." delineated path to the desired value
+                            within the object its expected to be extracted from
+    '''
     def __init__(self, name, metric_type, scoped_object_key):
         self.name = name
         self.metric_type = metric_type
         self.scoped_object_key = scoped_object_key
 
 class MetricEmitter:
+    '''
+    Encapsulates a function to build metrics and the definitions of metrics
+    that should be built.
+
+    Constructor Arguements:
+        emit_func: The function used to build and emit metrics from the NGINX+
+                    status JSON. The function is expected to accept the arguements:
+                        * The NGINX+ status JSON
+                        * A list of MetricDefinitions
+                        * An instance of MetricSink
+
+        metrics: A list of MetricDefinition, the metrics to be built and emitted by emit_func
+    '''
     def __init__(self, emit_func, metrics):
         self.emit_func = emit_func
         self.metrics = metrics
 
     def emit(self, status_json, sink):
+        '''
+        Build and emit metrics with the encapsulated function and metric definitions
+        along with the given status JSON and sink.
+        '''
         self.emit_func(status_json, self.metrics, sink)
 
 class MetricRecord:
+    '''
+    Struct for all information needed to emit a single collectd metric.
+    MetricSink is the expected consumer of instances of this class.
+    '''
     TO_STRING_FORMAT = '[metric_name={},metric_type={},metric_value={},instance_id={},dimensions={},timestamp={}]'
 
     def __init__(self, metric_name, metric_type, metric_value, instance_id, dimensions=None, timestamp=None):
@@ -34,7 +64,14 @@ class MetricRecord:
         return MetricRecord.TO_STRING_FORMAT.format(self.metric_name, self.metric_type, self.metric_value, self.instance_id, self.dimensions, self.timestamp)
 
 class MetricSink:
+    '''
+    Responsible for transforming and dispatching a MetricRecord via collectd.
+    '''
     def emit(self, metric_record):
+        '''
+        Construct a single collectd Values instance from the given MetricRecord
+        and dispatch.
+        '''
         emit_value = collectd.Values()
 
         emit_value.time = metric_record.timestamp
@@ -54,7 +91,7 @@ class MetricSink:
         emit_value.dispatch()
 
 # Server configueration flags
-STATUS_HOST = 'StatusIp'
+STATUS_HOST = 'StatusHost'
 STATUS_PORT = 'StatusPort'
 
 # Metric group configuration flags
@@ -155,6 +192,9 @@ STREAM_UPSTREAM_METRICS = [
 ]
 
 class NginxPlusPlugin:
+    '''
+    Collectd plugin for reporting metrics from a single NGINX+ instance.
+    '''
     def __init__(self):
         self.nginx_agent = None
         self.sink = None
@@ -180,7 +220,7 @@ class NginxPlusPlugin:
         status_port = None
 
         # Iterate the configueration values, pickup the status endpoint info
-        # and creating any specified opt-in metric emitters
+        # and create any specified opt-in metric emitters
         for node in conf.children:
             if node.key == STATUS_HOST:
                 status_host = node.values[0]
@@ -239,54 +279,135 @@ class NginxPlusPlugin:
             emitter.emit(status_json, self.sink)
 
     def _emit_top_level_metrics(self, status_json, metrics, sink):
+        '''
+        Extract and emit the top-level metrics from the status JSON.
+        '''
         LOGGER.debug('Emitting top-level metrics')
 
         dimensions = {'nginx.version' : _reduce_to_path(status_json, 'nginx_version')}
         self._fetch_and_emit_metrics(status_json, metrics, dimensions, sink)
 
     def _emit_server_zone_metrics(self, status_json, metrics, sink):
+        '''
+        Extract and emit the server-zone metrics from the status JSON.
+        '''
         LOGGER.debug('Emitting server-zone metrics')
 
         server_zones_obj = _reduce_to_path(status_json, 'server_zones')
         self._build_container_keyed_metrics(server_zones_obj, 'server.zone.name', metrics, sink)
 
     def _emit_upstreams_metrics(self, status_json, metrics, sink):
+        '''
+        Extract and emit the upstreams metrics from the status JSON.
+        '''
         LOGGER.debug('Emitting upstreams metrics')
 
         upstreams_obj = _reduce_to_path(status_json, 'upstreams')
         self._build_container_keyed_peer_metrics(upstreams_obj, 'upstream.name', 'upstream.peer.name', metrics, sink)
 
     def _emit_stream_server_zone_metrics(self, status_json, metrics, sink):
+        '''
+        Extract and emit the stream-server-zone metrics from the status JSON.
+        '''
         LOGGER.debug('Emitting stream-server-zone metrics')
 
         server_zones_obj = _reduce_to_path(status_json, 'stream.server_zones')
         self._build_container_keyed_metrics(server_zones_obj, 'stream.server.zone.name', metrics, sink)
 
     def _emit_stream_upstreams_metrics(self, status_json, metrics, sink):
+        '''
+        Extract and emit the stream-upstream metrics from the status JSON.
+        '''
         LOGGER.debug('Emitting stream-upstreams metrics')
 
         stream_upstreams_obj = _reduce_to_path(status_json, 'stream.upstreams')
         self._build_container_keyed_peer_metrics(stream_upstreams_obj, 'stream.upstream.name', 'stream.upstream.peer.name', metrics, sink)
 
     def _emit_memory_zone_metrics(self, status_json, metrics, sink):
+        '''
+        Extract and emit the memory zone metrics from the status JSON.
+        '''
         LOGGER.debug('Emitting memory-zone metrics')
 
         slab_obj = _reduce_to_path(status_json, 'slabs')
         self._build_container_keyed_metrics(slab_obj, 'memory.zone.name', metrics, sink)
 
     def _emit_cache_metrics(self, status_json, metrics, sink):
+        '''
+        Extract and emit the cache metrics from the status JSON.
+        '''
         LOGGER.debug('Emitting cache metrics')
 
         cache_obj = _reduce_to_path(status_json, 'caches')
         self._build_container_keyed_metrics(cache_obj, 'cache.name', metrics, sink)
 
     def _build_container_keyed_metrics(self, containers_obj, container_dimension_name, metrics, sink):
+        '''
+        Build metrics with a single dimension: the name of the top level object.
+
+        Multiple metric groups (server zone, cache, etc.) are given in the format:
+        {
+            ...
+            "my_server_zone_name" : {
+                "value" : 87
+            }
+            ...
+        }
+
+        In the above example, the dimension value would be "my_server_zone_name".
+
+        Example:
+            Args:
+                containers_obj: the above object
+                container_dimension_name: "server.zone.name"
+                metrics: [MetricDefinition('server.zone.value', 'counter', 'value')]
+
+            Produces:
+                MetricRecord('server.zone.value', 'counter', 87, self.instance_id, {'server.zone.name' : 'my_server_zone_name'})
+        '''
         if containers_obj:
             for container_name, container in containers_obj.iteritems():
                 dimensions = {container_dimension_name : container_name}
                 self._fetch_and_emit_metrics(container, metrics, dimensions, sink)
 
     def _build_container_keyed_peer_metrics(self, containers_obj, container_dimension_name, peer_dimension_name, metrics, sink):
+        '''
+        Build metrics with two dimensions: the name of the top level object and the name of each constituent object (peer).
+
+        Upstream metrics are given in the format:
+        {
+            ...
+            "my_upstream_name" : {
+                "peers" : [
+                    {
+                        "name" : "foo",
+                        "value" : 5
+                    },
+                    {
+                        "name" : "bar",
+                        "value" : 27
+                    }
+                ]
+            }
+            ...
+        }
+        The "container" name in the above example is "my_upstream_name" and the "peer"
+        names are "foo" and "bar".
+
+        This method builds metrics that are scoped to a single peer, but should
+        include the container name as a dimension.
+
+        Example:
+            Args:
+                containers_obj: the above object
+                container_dimension_name: "upstream.name"
+                peer_dimension_name: "upstream.peer.name"
+                metrics: [MetricDefinition('upstreams.value', 'counter', 'value')]
+
+            Produces:
+                MetricRecord('upstreams.value', 'counter', 5, self.instance_id, {'upstream.name' : 'my_upstream_name', 'upstream.peer.name' : 'foo'})
+                MetricRecord('upstreams.value', 'counter', 27, self.instance_id, {'upstream.name' : 'my_upstream_name'', 'upstream.peer.name' : 'bar'})
+        '''
         if containers_obj:
             # Each key in the container object is the name of the container
             for container_name, container in containers_obj.iteritems():
@@ -297,12 +418,21 @@ class NginxPlusPlugin:
                     self._fetch_and_emit_metrics(peer, metrics, dimensions, sink)
 
     def _fetch_and_emit_metrics(self, scoped_obj, metrics, dimensions, sink):
+        '''
+        For each metric the value is extracted from the given object and emitted
+        with the specified dimensions using the given sink. The current time will
+        be passed in on the emit.
+        '''
         for metric in metrics:
             metric_value = _reduce_to_path(scoped_obj, metric.scoped_object_key)
             if metric_value is not None:
                 sink.emit(MetricRecord(metric.name, metric.metric_type, metric_value, self.instance_id, dimensions, time.time()))
 
     def _check_config_metric_group_enabled(self, config_node, key):
+        '''
+        Convenience method to check if a collectd Config node contains the given
+        key and if that key's value is a True bool.
+        '''
         return config_node.key == key and self._str_to_bool(config_node.values[0])
 
     def _str_to_bool(self, value):
@@ -327,8 +457,24 @@ class NginxPlusPlugin:
     def _log_emitter_group_enabled(self, emitter_group):
         LOGGER.debug('{} enabled, adding emitters'.format(emitter_group))
 
-# Copied from collectd-elasticsearch
 def _reduce_to_path(obj, path):
+    '''
+    Traverses the given object down the specified "." delineated, returning the
+    value named by the last path segment.
+    Example:
+        To get "bat" from the below object
+            {
+                "foo" : {
+                    "bar" : {
+                        "bat" : "something_important"
+                    }
+                }
+            }
+        use the path: "foo.bar.bat"
+
+    If the path is invalid None will be returned.
+    Copied from collectd-elasticsearch
+    '''
     try:
         if type(path) in (str, unicode):
             path = path.split('.')
@@ -338,6 +484,9 @@ def _reduce_to_path(obj, path):
 
 
 class NginxStatusAgent:
+    '''
+    Helper class for interacting with a single NGINX+ instance.
+    '''
     def __init__(self, status_host=None, status_port=None):
         self.status_host = status_host or '127.0.0.1'
         self.status_port = status_port or 8080
@@ -412,6 +561,13 @@ class CollectdLogHandler(logging.Handler):
 
 
 class CollectdMock:
+    '''
+    Mock of the collectd module.
+
+    This is used when running the plugin locally.
+    All log messages are printed to stdout.
+    The Values() method will return an instance of CollectdValuesMock
+    '''
     def __init__(self):
         self.value_mock = CollectdValuesMock
 
@@ -436,6 +592,13 @@ class CollectdMock:
 
 
 class CollectdValuesMock:
+    '''
+    Mock of the collectd Values class.
+
+    Instanes of this class are returned by CollectdMock, which is used to mock
+    collectd when running locally.
+    The dispatch() method will print the emitted record to stdout.
+    '''
     def dispatch(self):
         if not getattr(self, 'host', None):
             self.host = os.environ.get('COLLECTD_HOSTNAME', 'localhost')
@@ -458,10 +621,22 @@ class CollectdValuesMock:
         return "<CollectdValues {}>".format(' '.join(attrs))
 
 class CollectdConfigMock:
+    '''
+    Mock of the collectd Config class.
+
+    This class is used to configure the plugin when running locally.
+    The children field is expected to be a list of CollectdConfigChildMock.
+    '''
     def __init__(self, children=None):
         self.children = children or []
 
 class CollectdConfigChildMock:
+    '''
+    Mock of the collectd Conf child class.
+
+    This class is used to mock key:value pairs normally pulled from the plugin
+    configuration file.
+    '''
     def __init__(self, key, values):
         self.key = key
         self.values = values
@@ -482,6 +657,7 @@ if __name__ == '__main__':
     mock_config_ip_child = CollectdConfigChildMock(STATUS_HOST, [status_host])
     mock_config_port_child = CollectdConfigChildMock(STATUS_PORT, [status_port])
 
+    # Setup the mock config to enable all metric groups
     mock_config_server_zone_child = CollectdConfigChildMock(SERVER_ZONE, ['true'])
     mock_config_memory_zone_child = CollectdConfigChildMock(MEMORY_ZONE, ['true'])
     mock_config_upstream_child = CollectdConfigChildMock(UPSTREAM, ['true'])
