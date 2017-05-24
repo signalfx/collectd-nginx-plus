@@ -17,18 +17,18 @@ class MetricSinkTest(TestCase):
     def test_emit_record(self, mock_collectd):
         mock_collectd.return_value = self.mock_values
 
+        instance_id = 'my_plugin'
         metric_value = 1234567890
-        metric_instance_id = 'my_plugin'
         metric_dimensions = {'nginx.version' : '1.11.10'}
 
         expected_type = 'counter'
         expected_values = [metric_value]
-        expected_plugin_instance = '{}[{}]'.format(metric_instance_id, metric_dimensions)
+        expected_plugin_instance = '{}[{}]'.format(instance_id, metric_dimensions)
         expected_type_instance = 'connections.accepted'
         expected_meta = {'true' : 'true'}
         expected_plugin = 'nginx-plus'
 
-        record = MetricRecord(expected_type_instance, expected_type, metric_value, metric_instance_id, metric_dimensions)
+        record = MetricRecord(expected_type_instance, expected_type, metric_value, instance_id, metric_dimensions)
 
         self.sink.emit(record)
         self.assertEquals(1, len(self.mock_values.dispatch_collector))

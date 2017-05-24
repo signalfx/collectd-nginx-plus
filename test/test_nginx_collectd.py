@@ -74,7 +74,7 @@ class NginxCollectdTest(TestCase):
         self.assertEquals(len(expected_metric_names), len(actual_metric_names))
         self.assertItemsEqual(expected_metric_names, actual_metric_names)
 
-    def test_config_callback_server_zone_emitters(self):
+    def test_config_callback_memory_zone_emitters(self):
         expected_metric_names = self._get_default_metric_names()
         expected_metric_names.extend(self._extract_metric_names_from_definitions(MEMORY_ZONE_METRICS))
 
@@ -223,7 +223,8 @@ class NginxCollectdTest(TestCase):
         status_json = self._read_test_resource_json('resources/status_response.json')
 
         metrics = [MetricDefinition('connections.accepted', 'counter', 'connections.accepted')]
-        expected_record = MetricRecord('connections.accepted', 'counter', 14527228, self.plugin.instance_id, {'nginx.version' : '1.11.10'})
+        expected_record = MetricRecord('connections.accepted', 'counter', 14527228, self.plugin.instance_id,
+                                       {'nginx.version' : '1.11.10'})
 
         self.plugin._emit_top_level_metrics(status_json, metrics, self.mock_sink)
 
@@ -234,7 +235,8 @@ class NginxCollectdTest(TestCase):
         status_json = self._read_test_resource_json('resources/status_response.json')
 
         metrics = [MetricDefinition('connections.dropped', 'counter', 'connections.dropped')]
-        expected_record = MetricRecord('connections.dropped', 'counter', 0, self.plugin.instance_id, {'nginx.version' : '1.11.10'})
+        expected_record = MetricRecord('connections.dropped', 'counter', 0, self.plugin.instance_id,
+                                       {'nginx.version' : '1.11.10'})
 
         self.plugin._emit_top_level_metrics(status_json, metrics, self.mock_sink)
 
@@ -245,7 +247,8 @@ class NginxCollectdTest(TestCase):
         status_json = self._read_test_resource_json('resources/status_response.json')
 
         metrics = [MetricDefinition('connections.idle', 'counter', 'connections.idle')]
-        expected_record = MetricRecord('connections.idle', 'counter', 45, self.plugin.instance_id, {'nginx.version' : '1.11.10'})
+        expected_record = MetricRecord('connections.idle', 'counter', 45, self.plugin.instance_id,
+                                       {'nginx.version' : '1.11.10'})
 
         self.plugin._emit_top_level_metrics(status_json, metrics, self.mock_sink)
 
@@ -256,7 +259,8 @@ class NginxCollectdTest(TestCase):
         status_json = self._read_test_resource_json('resources/status_response.json')
 
         metrics = [MetricDefinition('ssl.handshakes.successful', 'counter', 'ssl.handshakes')]
-        expected_record = MetricRecord('ssl.handshakes.successful', 'counter', 166597, self.plugin.instance_id, {'nginx.version' : '1.11.10'})
+        expected_record = MetricRecord('ssl.handshakes.successful', 'counter', 166597, self.plugin.instance_id,
+                                       {'nginx.version' : '1.11.10'})
 
         self.plugin._emit_top_level_metrics(status_json, metrics, self.mock_sink)
 
@@ -267,7 +271,8 @@ class NginxCollectdTest(TestCase):
         status_json = self._read_test_resource_json('resources/status_response.json')
 
         metrics = [MetricDefinition('ssl.handshakes.failed', 'counter', 'ssl.handshakes_failed')]
-        expected_record = MetricRecord('ssl.handshakes.failed', 'counter', 26154, self.plugin.instance_id, {'nginx.version' : '1.11.10'})
+        expected_record = MetricRecord('ssl.handshakes.failed', 'counter', 26154, self.plugin.instance_id,
+                                       {'nginx.version' : '1.11.10'})
 
         self.plugin._emit_top_level_metrics(status_json, metrics, self.mock_sink)
 
@@ -278,7 +283,8 @@ class NginxCollectdTest(TestCase):
         status_json = self._read_test_resource_json('resources/status_response.json')
 
         metrics = [MetricDefinition('requests.total', 'counter', 'requests.total')]
-        expected_record = MetricRecord('requests.total', 'counter', 43878009, self.plugin.instance_id, {'nginx.version' : '1.11.10'})
+        expected_record = MetricRecord('requests.total', 'counter', 43878009, self.plugin.instance_id,
+                                       {'nginx.version' : '1.11.10'})
 
         self.plugin._emit_top_level_metrics(status_json, metrics, self.mock_sink)
 
@@ -289,7 +295,8 @@ class NginxCollectdTest(TestCase):
         status_json = self._read_test_resource_json('resources/status_response.json')
 
         metrics = [MetricDefinition('requests.current', 'counter', 'requests.current')]
-        expected_record = MetricRecord('requests.current', 'counter', 5, self.plugin.instance_id, {'nginx.version' : '1.11.10'})
+        expected_record = MetricRecord('requests.current', 'counter', 5, self.plugin.instance_id,
+                                       {'nginx.version' : '1.11.10'})
 
         self.plugin._emit_top_level_metrics(status_json, metrics, self.mock_sink)
 
@@ -300,8 +307,10 @@ class NginxCollectdTest(TestCase):
         status_json = self._read_test_resource_json('resources/status_response.json')
 
         metrics = [MetricDefinition('server.zone.requests', 'counter', 'requests')]
-        expected_record_1 = MetricRecord('server.zone.requests', 'counter', 465034, self.plugin.instance_id, {'server.zone.name' : 'hg.nginx.org'})
-        expected_record_2 = MetricRecord('server.zone.requests', 'counter', 384296, self.plugin.instance_id, {'server.zone.name' : 'trac.nginx.org'})
+        expected_record_1 = MetricRecord('server.zone.requests', 'counter', 465034, self.plugin.instance_id,
+                                        {'server.zone.name' : 'hg.nginx.org'})
+        expected_record_2 = MetricRecord('server.zone.requests', 'counter', 384296, self.plugin.instance_id,
+                                        {'server.zone.name' : 'trac.nginx.org'})
         expected_records = [expected_record_1, expected_record_2]
 
         self.plugin._emit_server_zone_metrics(status_json, metrics, self.mock_sink)
@@ -313,8 +322,10 @@ class NginxCollectdTest(TestCase):
         status_json = self._read_test_resource_json('resources/status_response.json')
 
         metrics = [MetricDefinition('server.zone.processing', 'counter', 'processing')]
-        expected_record_1 = MetricRecord('server.zone.processing', 'counter', 0, self.plugin.instance_id, {'server.zone.name' : 'hg.nginx.org'})
-        expected_record_2 = MetricRecord('server.zone.processing', 'counter', 3, self.plugin.instance_id, {'server.zone.name' : 'trac.nginx.org'})
+        expected_record_1 = MetricRecord('server.zone.processing', 'counter', 0, self.plugin.instance_id,
+            {'server.zone.name' : 'hg.nginx.org'})
+        expected_record_2 = MetricRecord('server.zone.processing', 'counter', 3, self.plugin.instance_id,
+            {'server.zone.name' : 'trac.nginx.org'})
         expected_records = [expected_record_1, expected_record_2]
 
         self.plugin._emit_server_zone_metrics(status_json, metrics, self.mock_sink)
@@ -326,8 +337,10 @@ class NginxCollectdTest(TestCase):
         status_json = self._read_test_resource_json('resources/status_response.json')
 
         metrics = [MetricDefinition('server.zone.discarded', 'counter', 'discarded')]
-        expected_record_1 = MetricRecord('server.zone.discarded', 'counter', 457, self.plugin.instance_id, {'server.zone.name' : 'hg.nginx.org'})
-        expected_record_2 = MetricRecord('server.zone.discarded', 'counter', 41974, self.plugin.instance_id, {'server.zone.name' : 'trac.nginx.org'})
+        expected_record_1 = MetricRecord('server.zone.discarded', 'counter', 457, self.plugin.instance_id,
+            {'server.zone.name' : 'hg.nginx.org'})
+        expected_record_2 = MetricRecord('server.zone.discarded', 'counter', 41974, self.plugin.instance_id,
+            {'server.zone.name' : 'trac.nginx.org'})
         expected_records = [expected_record_1, expected_record_2]
 
         self.plugin._emit_server_zone_metrics(status_json, metrics, self.mock_sink)
@@ -339,8 +352,10 @@ class NginxCollectdTest(TestCase):
         status_json = self._read_test_resource_json('resources/status_response.json')
 
         metrics = [MetricDefinition('server.zone.responses.total', 'counter', 'responses.total')]
-        expected_record_1 = MetricRecord('server.zone.responses.total', 'counter', 464577, self.plugin.instance_id, {'server.zone.name' : 'hg.nginx.org'})
-        expected_record_2 = MetricRecord('server.zone.responses.total', 'counter', 342319, self.plugin.instance_id, {'server.zone.name' : 'trac.nginx.org'})
+        expected_record_1 = MetricRecord('server.zone.responses.total', 'counter', 464577, self.plugin.instance_id,
+            {'server.zone.name' : 'hg.nginx.org'})
+        expected_record_2 = MetricRecord('server.zone.responses.total', 'counter', 342319, self.plugin.instance_id,
+            {'server.zone.name' : 'trac.nginx.org'})
         expected_records = [expected_record_1, expected_record_2]
 
         self.plugin._emit_server_zone_metrics(status_json, metrics, self.mock_sink)
@@ -352,8 +367,10 @@ class NginxCollectdTest(TestCase):
         status_json = self._read_test_resource_json('resources/status_response.json')
 
         metrics = [MetricDefinition('server.zone.responses.1xx', 'counter', 'responses.1xx')]
-        expected_record_1 = MetricRecord('server.zone.responses.1xx', 'counter', 0, self.plugin.instance_id, {'server.zone.name' : 'hg.nginx.org'})
-        expected_record_2 = MetricRecord('server.zone.responses.1xx', 'counter', 0, self.plugin.instance_id, {'server.zone.name' : 'trac.nginx.org'})
+        expected_record_1 = MetricRecord('server.zone.responses.1xx', 'counter', 0, self.plugin.instance_id,
+            {'server.zone.name' : 'hg.nginx.org'})
+        expected_record_2 = MetricRecord('server.zone.responses.1xx', 'counter', 0, self.plugin.instance_id,
+            {'server.zone.name' : 'trac.nginx.org'})
         expected_records = [expected_record_1, expected_record_2]
 
         self.plugin._emit_server_zone_metrics(status_json, metrics, self.mock_sink)
@@ -365,8 +382,10 @@ class NginxCollectdTest(TestCase):
         status_json = self._read_test_resource_json('resources/status_response.json')
 
         metrics = [MetricDefinition('server.zone.responses.2xx', 'counter', 'responses.2xx')]
-        expected_record_1 = MetricRecord('server.zone.responses.2xx', 'counter', 450715, self.plugin.instance_id, {'server.zone.name' : 'hg.nginx.org'})
-        expected_record_2 = MetricRecord('server.zone.responses.2xx', 'counter', 215961, self.plugin.instance_id, {'server.zone.name' : 'trac.nginx.org'})
+        expected_record_1 = MetricRecord('server.zone.responses.2xx', 'counter', 450715, self.plugin.instance_id,
+            {'server.zone.name' : 'hg.nginx.org'})
+        expected_record_2 = MetricRecord('server.zone.responses.2xx', 'counter', 215961, self.plugin.instance_id,
+            {'server.zone.name' : 'trac.nginx.org'})
         expected_records = [expected_record_1, expected_record_2]
 
         self.plugin._emit_server_zone_metrics(status_json, metrics, self.mock_sink)
@@ -378,8 +397,10 @@ class NginxCollectdTest(TestCase):
         status_json = self._read_test_resource_json('resources/status_response.json')
 
         metrics = [MetricDefinition('server.zone.responses.3xx', 'counter', 'responses.3xx')]
-        expected_record_1 = MetricRecord('server.zone.responses.3xx', 'counter', 7834, self.plugin.instance_id, {'server.zone.name' : 'hg.nginx.org'})
-        expected_record_2 = MetricRecord('server.zone.responses.3xx', 'counter', 78603, self.plugin.instance_id, {'server.zone.name' : 'trac.nginx.org'})
+        expected_record_1 = MetricRecord('server.zone.responses.3xx', 'counter', 7834, self.plugin.instance_id,
+            {'server.zone.name' : 'hg.nginx.org'})
+        expected_record_2 = MetricRecord('server.zone.responses.3xx', 'counter', 78603, self.plugin.instance_id,
+            {'server.zone.name' : 'trac.nginx.org'})
         expected_records = [expected_record_1, expected_record_2]
 
         self.plugin._emit_server_zone_metrics(status_json, metrics, self.mock_sink)
@@ -391,8 +412,10 @@ class NginxCollectdTest(TestCase):
         status_json = self._read_test_resource_json('resources/status_response.json')
 
         metrics = [MetricDefinition('server.zone.responses.4xx', 'counter', 'responses.4xx')]
-        expected_record_1 = MetricRecord('server.zone.responses.4xx', 'counter', 5461, self.plugin.instance_id, {'server.zone.name' : 'hg.nginx.org'})
-        expected_record_2 = MetricRecord('server.zone.responses.4xx', 'counter', 22380, self.plugin.instance_id, {'server.zone.name' : 'trac.nginx.org'})
+        expected_record_1 = MetricRecord('server.zone.responses.4xx', 'counter', 5461, self.plugin.instance_id,
+            {'server.zone.name' : 'hg.nginx.org'})
+        expected_record_2 = MetricRecord('server.zone.responses.4xx', 'counter', 22380, self.plugin.instance_id,
+            {'server.zone.name' : 'trac.nginx.org'})
         expected_records = [expected_record_1, expected_record_2]
 
         self.plugin._emit_server_zone_metrics(status_json, metrics, self.mock_sink)
@@ -404,8 +427,10 @@ class NginxCollectdTest(TestCase):
         status_json = self._read_test_resource_json('resources/status_response.json')
 
         metrics = [MetricDefinition('server.zone.responses.5xx', 'counter', 'responses.5xx')]
-        expected_record_1 = MetricRecord('server.zone.responses.5xx', 'counter', 567, self.plugin.instance_id, {'server.zone.name' : 'hg.nginx.org'})
-        expected_record_2 = MetricRecord('server.zone.responses.5xx', 'counter', 25375, self.plugin.instance_id, {'server.zone.name' : 'trac.nginx.org'})
+        expected_record_1 = MetricRecord('server.zone.responses.5xx', 'counter', 567, self.plugin.instance_id,
+            {'server.zone.name' : 'hg.nginx.org'})
+        expected_record_2 = MetricRecord('server.zone.responses.5xx', 'counter', 25375, self.plugin.instance_id,
+            {'server.zone.name' : 'trac.nginx.org'})
         expected_records = [expected_record_1, expected_record_2]
 
         self.plugin._emit_server_zone_metrics(status_json, metrics, self.mock_sink)
@@ -417,8 +442,10 @@ class NginxCollectdTest(TestCase):
         status_json = self._read_test_resource_json('resources/status_response.json')
 
         metrics = [MetricDefinition('server.zone.bytes.received', 'counter', 'received')]
-        expected_record_1 = MetricRecord('server.zone.bytes.received', 'counter', 112274034, self.plugin.instance_id, {'server.zone.name' : 'hg.nginx.org'})
-        expected_record_2 = MetricRecord('server.zone.bytes.received', 'counter', 123130586, self.plugin.instance_id, {'server.zone.name' : 'trac.nginx.org'})
+        expected_record_1 = MetricRecord('server.zone.bytes.received', 'counter', 112274034, self.plugin.instance_id,
+            {'server.zone.name' : 'hg.nginx.org'})
+        expected_record_2 = MetricRecord('server.zone.bytes.received', 'counter', 123130586, self.plugin.instance_id,
+            {'server.zone.name' : 'trac.nginx.org'})
         expected_records = [expected_record_1, expected_record_2]
 
         self.plugin._emit_server_zone_metrics(status_json, metrics, self.mock_sink)
@@ -430,8 +457,10 @@ class NginxCollectdTest(TestCase):
         status_json = self._read_test_resource_json('resources/status_response.json')
 
         metrics = [MetricDefinition('server.zone.bytes.sent', 'counter', 'sent')]
-        expected_record_1 = MetricRecord('server.zone.bytes.sent', 'counter', 10968683492, self.plugin.instance_id, {'server.zone.name' : 'hg.nginx.org'})
-        expected_record_2 = MetricRecord('server.zone.bytes.sent', 'counter', 5740717145, self.plugin.instance_id, {'server.zone.name' : 'trac.nginx.org'})
+        expected_record_1 = MetricRecord('server.zone.bytes.sent', 'counter', 10968683492, self.plugin.instance_id,
+            {'server.zone.name' : 'hg.nginx.org'})
+        expected_record_2 = MetricRecord('server.zone.bytes.sent', 'counter', 5740717145, self.plugin.instance_id,
+            {'server.zone.name' : 'trac.nginx.org'})
         expected_records = [expected_record_1, expected_record_2]
 
         self.plugin._emit_server_zone_metrics(status_json, metrics, self.mock_sink)
@@ -443,7 +472,8 @@ class NginxCollectdTest(TestCase):
         status_json = self._read_test_resource_json('resources/status_response.json')
 
         metrics = [MetricDefinition('zones.pages.used', 'counter', 'pages.used')]
-        expected_record = MetricRecord('zones.pages.used', 'counter', 6, self.plugin.instance_id, {'memory.zone.name' : 'nginxorg'})
+        expected_record = MetricRecord('zones.pages.used', 'counter', 6, self.plugin.instance_id,
+            {'memory.zone.name' : 'nginxorg'})
 
         self.plugin._emit_memory_zone_metrics(status_json, metrics, self.mock_sink)
 
@@ -454,7 +484,8 @@ class NginxCollectdTest(TestCase):
         status_json = self._read_test_resource_json('resources/status_response.json')
 
         metrics = [MetricDefinition('zones.pages.free', 'counter', 'pages.free')]
-        expected_record = MetricRecord('zones.pages.free', 'counter', 1, self.plugin.instance_id, {'memory.zone.name' : 'nginxorg'})
+        expected_record = MetricRecord('zones.pages.free', 'counter', 1, self.plugin.instance_id,
+            {'memory.zone.name' : 'nginxorg'})
 
         self.plugin._emit_memory_zone_metrics(status_json, metrics, self.mock_sink)
 
@@ -738,7 +769,8 @@ class NginxCollectdTest(TestCase):
         status_json = self._read_test_resource_json('resources/status_response.json')
 
         metrics = [MetricDefinition('caches.size', 'counter', 'size')]
-        expected_record = MetricRecord('caches.size', 'counter', 532680704, self.plugin.instance_id, {'cache.name' : 'http_cache'})
+        expected_record = MetricRecord('caches.size', 'counter', 532680704, self.plugin.instance_id,
+            {'cache.name' : 'http_cache'})
 
         self.plugin._emit_cache_metrics(status_json, metrics, self.mock_sink)
 
@@ -749,7 +781,8 @@ class NginxCollectdTest(TestCase):
         status_json = self._read_test_resource_json('resources/status_response.json')
 
         metrics = [MetricDefinition('caches.size.max', 'counter', 'max_size')]
-        expected_record = MetricRecord('caches.size.max', 'counter', 536870912, self.plugin.instance_id, {'cache.name' : 'http_cache'})
+        expected_record = MetricRecord('caches.size.max', 'counter', 536870912, self.plugin.instance_id,
+            {'cache.name' : 'http_cache'})
 
         self.plugin._emit_cache_metrics(status_json, metrics, self.mock_sink)
 
@@ -760,7 +793,8 @@ class NginxCollectdTest(TestCase):
         status_json = self._read_test_resource_json('resources/status_response.json')
 
         metrics = [MetricDefinition('caches.hits', 'counter', 'hit.responses')]
-        expected_record = MetricRecord('caches.hits', 'counter', 921734, self.plugin.instance_id, {'cache.name' : 'http_cache'})
+        expected_record = MetricRecord('caches.hits', 'counter', 921734, self.plugin.instance_id,
+            {'cache.name' : 'http_cache'})
 
         self.plugin._emit_cache_metrics(status_json, metrics, self.mock_sink)
 
@@ -771,7 +805,8 @@ class NginxCollectdTest(TestCase):
         status_json = self._read_test_resource_json('resources/status_response.json')
 
         metrics = [MetricDefinition('caches.misses', 'counter', 'miss.responses')]
-        expected_record = MetricRecord('caches.misses', 'counter', 3396487, self.plugin.instance_id, {'cache.name' : 'http_cache'})
+        expected_record = MetricRecord('caches.misses', 'counter', 3396487, self.plugin.instance_id,
+            {'cache.name' : 'http_cache'})
 
         self.plugin._emit_cache_metrics(status_json, metrics, self.mock_sink)
 
@@ -782,8 +817,10 @@ class NginxCollectdTest(TestCase):
         status_json = self._read_test_resource_json('resources/status_response.json')
 
         metrics = [MetricDefinition('stream.server.zone.connections', 'counter', 'connections')]
-        expected_record_1 = MetricRecord('stream.server.zone.connections', 'counter', 382002, self.plugin.instance_id, {'stream.server.zone.name' : 'postgresql_loadbalancer'})
-        expected_record_2 = MetricRecord('stream.server.zone.connections', 'counter', 219222, self.plugin.instance_id, {'stream.server.zone.name' : 'dns_loadbalancer'})
+        expected_record_1 = MetricRecord('stream.server.zone.connections', 'counter', 382002, self.plugin.instance_id,
+            {'stream.server.zone.name' : 'postgresql_loadbalancer'})
+        expected_record_2 = MetricRecord('stream.server.zone.connections', 'counter', 219222, self.plugin.instance_id,
+            {'stream.server.zone.name' : 'dns_loadbalancer'})
 
         expected_records = [expected_record_1, expected_record_2]
 
@@ -796,8 +833,10 @@ class NginxCollectdTest(TestCase):
         status_json = self._read_test_resource_json('resources/status_response.json')
 
         metrics = [MetricDefinition('stream.server.zone.processing', 'counter', 'processing')]
-        expected_record_1 = MetricRecord('stream.server.zone.processing', 'counter', 0, self.plugin.instance_id, {'stream.server.zone.name' : 'postgresql_loadbalancer'})
-        expected_record_2 = MetricRecord('stream.server.zone.processing', 'counter', 0, self.plugin.instance_id, {'stream.server.zone.name' : 'dns_loadbalancer'})
+        expected_record_1 = MetricRecord('stream.server.zone.processing', 'counter', 0, self.plugin.instance_id,
+            {'stream.server.zone.name' : 'postgresql_loadbalancer'})
+        expected_record_2 = MetricRecord('stream.server.zone.processing', 'counter', 0, self.plugin.instance_id,
+            {'stream.server.zone.name' : 'dns_loadbalancer'})
 
         expected_records = [expected_record_1, expected_record_2]
 
@@ -810,8 +849,10 @@ class NginxCollectdTest(TestCase):
         status_json = self._read_test_resource_json('resources/status_response.json')
 
         metrics = [MetricDefinition('stream.server.zone.session.2xx', 'counter', 'sessions.2xx')]
-        expected_record_1 = MetricRecord('stream.server.zone.session.2xx', 'counter', 382002, self.plugin.instance_id, {'stream.server.zone.name' : 'postgresql_loadbalancer'})
-        expected_record_2 = MetricRecord('stream.server.zone.session.2xx', 'counter', 219222, self.plugin.instance_id, {'stream.server.zone.name' : 'dns_loadbalancer'})
+        expected_record_1 = MetricRecord('stream.server.zone.session.2xx', 'counter', 382002, self.plugin.instance_id,
+            {'stream.server.zone.name' : 'postgresql_loadbalancer'})
+        expected_record_2 = MetricRecord('stream.server.zone.session.2xx', 'counter', 219222, self.plugin.instance_id,
+            {'stream.server.zone.name' : 'dns_loadbalancer'})
 
         expected_records = [expected_record_1, expected_record_2]
 
@@ -824,8 +865,10 @@ class NginxCollectdTest(TestCase):
         status_json = self._read_test_resource_json('resources/status_response.json')
 
         metrics = [MetricDefinition('stream.server.zone.session.4xx', 'counter', 'sessions.4xx')]
-        expected_record_1 = MetricRecord('stream.server.zone.session.4xx', 'counter', 0, self.plugin.instance_id, {'stream.server.zone.name' : 'postgresql_loadbalancer'})
-        expected_record_2 = MetricRecord('stream.server.zone.session.4xx', 'counter', 0, self.plugin.instance_id, {'stream.server.zone.name' : 'dns_loadbalancer'})
+        expected_record_1 = MetricRecord('stream.server.zone.session.4xx', 'counter', 0, self.plugin.instance_id,
+            {'stream.server.zone.name' : 'postgresql_loadbalancer'})
+        expected_record_2 = MetricRecord('stream.server.zone.session.4xx', 'counter', 0, self.plugin.instance_id,
+            {'stream.server.zone.name' : 'dns_loadbalancer'})
 
         expected_records = [expected_record_1, expected_record_2]
 
@@ -838,8 +881,10 @@ class NginxCollectdTest(TestCase):
         status_json = self._read_test_resource_json('resources/status_response.json')
 
         metrics = [MetricDefinition('stream.server.zone.session.5xx', 'counter', 'sessions.5xx')]
-        expected_record_1 = MetricRecord('stream.server.zone.session.5xx', 'counter', 0, self.plugin.instance_id, {'stream.server.zone.name' : 'postgresql_loadbalancer'})
-        expected_record_2 = MetricRecord('stream.server.zone.session.5xx', 'counter', 0, self.plugin.instance_id, {'stream.server.zone.name' : 'dns_loadbalancer'})
+        expected_record_1 = MetricRecord('stream.server.zone.session.5xx', 'counter', 0, self.plugin.instance_id,
+            {'stream.server.zone.name' : 'postgresql_loadbalancer'})
+        expected_record_2 = MetricRecord('stream.server.zone.session.5xx', 'counter', 0, self.plugin.instance_id,
+            {'stream.server.zone.name' : 'dns_loadbalancer'})
 
         expected_records = [expected_record_1, expected_record_2]
 
@@ -926,17 +971,18 @@ class NginxCollectdTest(TestCase):
         self._verify_records_captured(expected_records)
 
     def test_stream_upstream_bytes_received(self):
+        instance_id = self.plugin.instance_id
         status_json = self._read_test_resource_json('resources/status_response.json')
 
         metrics = [MetricDefinition('stream.upstreams.bytes.received', 'counter', 'received')]
-        expected_record_1 = MetricRecord('stream.upstreams.bytes.received', 'counter', 13634, self.plugin.instance_id,
+        expected_record_1 = MetricRecord('stream.upstreams.bytes.received', 'counter', 13634, instance_id,
             {'stream.upstream.name' : 'postgresql_backends', 'stream.upstream.peer.name' : '10.0.0.2:15432'})
-        expected_record_2 = MetricRecord('stream.upstreams.bytes.received', 'counter', 2743118929, self.plugin.instance_id,
+        expected_record_2 = MetricRecord('stream.upstreams.bytes.received', 'counter', 2743118929, instance_id,
             {'stream.upstream.name' : 'postgresql_backends', 'stream.upstream.peer.name' : '10.0.0.2:15433'})
 
-        expected_record_3 = MetricRecord('stream.upstreams.bytes.received', 'counter', 19249800, self.plugin.instance_id,
+        expected_record_3 = MetricRecord('stream.upstreams.bytes.received', 'counter', 19249800, instance_id,
             {'stream.upstream.name' : 'dns_udp_backends', 'stream.upstream.peer.name' : '10.0.0.5:53'})
-        expected_record_4 = MetricRecord('stream.upstreams.bytes.received', 'counter', 9624780, self.plugin.instance_id,
+        expected_record_4 = MetricRecord('stream.upstreams.bytes.received', 'counter', 9624780, instance_id,
             {'stream.upstream.name' : 'dns_udp_backends', 'stream.upstream.peer.name' : '10.0.0.2:53'})
 
         expected_records = [expected_record_1, expected_record_2, expected_record_3, expected_record_4]
@@ -989,17 +1035,18 @@ class NginxCollectdTest(TestCase):
         self._verify_records_captured(expected_records)
 
     def test_stream_upstream_health_check_checks(self):
+        instance_id = self.plugin.instance_id
         status_json = self._read_test_resource_json('resources/status_response.json')
 
         metrics = [MetricDefinition('stream.upstreams.health.checks.checks', 'counter', 'health_checks.checks')]
-        expected_record_1 = MetricRecord('stream.upstreams.health.checks.checks', 'counter', 76582, self.plugin.instance_id,
+        expected_record_1 = MetricRecord('stream.upstreams.health.checks.checks', 'counter', 76582, instance_id,
             {'stream.upstream.name' : 'postgresql_backends', 'stream.upstream.peer.name' : '10.0.0.2:15432'})
-        expected_record_2 = MetricRecord('stream.upstreams.health.checks.checks', 'counter', 76582, self.plugin.instance_id,
+        expected_record_2 = MetricRecord('stream.upstreams.health.checks.checks', 'counter', 76582, instance_id,
             {'stream.upstream.name' : 'postgresql_backends', 'stream.upstream.peer.name' : '10.0.0.2:15433'})
 
-        expected_record_3 = MetricRecord('stream.upstreams.health.checks.checks', 'counter', 76552, self.plugin.instance_id,
+        expected_record_3 = MetricRecord('stream.upstreams.health.checks.checks', 'counter', 76552, instance_id,
             {'stream.upstream.name' : 'dns_udp_backends', 'stream.upstream.peer.name' : '10.0.0.5:53'})
-        expected_record_4 = MetricRecord('stream.upstreams.health.checks.checks', 'counter', 76552, self.plugin.instance_id,
+        expected_record_4 = MetricRecord('stream.upstreams.health.checks.checks', 'counter', 76552, instance_id,
             {'stream.upstream.name' : 'dns_udp_backends', 'stream.upstream.peer.name' : '10.0.0.2:53'})
 
         expected_records = [expected_record_1, expected_record_2, expected_record_3, expected_record_4]
@@ -1031,17 +1078,18 @@ class NginxCollectdTest(TestCase):
         self._verify_records_captured(expected_records)
 
     def test_stream_upstream_health_check_unhealthy(self):
+        instance_id = self.plugin.instance_id
         status_json = self._read_test_resource_json('resources/status_response.json')
 
         metrics = [MetricDefinition('stream.upstreams.health.checks.unhealthy', 'counter', 'health_checks.unhealthy')]
-        expected_record_1 = MetricRecord('stream.upstreams.health.checks.unhealthy', 'counter', 0, self.plugin.instance_id,
+        expected_record_1 = MetricRecord('stream.upstreams.health.checks.unhealthy', 'counter', 0, instance_id,
             {'stream.upstream.name' : 'postgresql_backends', 'stream.upstream.peer.name' : '10.0.0.2:15432'})
-        expected_record_2 = MetricRecord('stream.upstreams.health.checks.unhealthy', 'counter', 0, self.plugin.instance_id,
+        expected_record_2 = MetricRecord('stream.upstreams.health.checks.unhealthy', 'counter', 0, instance_id,
             {'stream.upstream.name' : 'postgresql_backends', 'stream.upstream.peer.name' : '10.0.0.2:15433'})
 
-        expected_record_3 = MetricRecord('stream.upstreams.health.checks.unhealthy', 'counter', 0, self.plugin.instance_id,
+        expected_record_3 = MetricRecord('stream.upstreams.health.checks.unhealthy', 'counter', 0, instance_id,
             {'stream.upstream.name' : 'dns_udp_backends', 'stream.upstream.peer.name' : '10.0.0.5:53'})
-        expected_record_4 = MetricRecord('stream.upstreams.health.checks.unhealthy', 'counter', 0, self.plugin.instance_id,
+        expected_record_4 = MetricRecord('stream.upstreams.health.checks.unhealthy', 'counter', 0, instance_id,
             {'stream.upstream.name' : 'dns_udp_backends', 'stream.upstream.peer.name' : '10.0.0.2:53'})
 
         expected_records = [expected_record_1, expected_record_2, expected_record_3, expected_record_4]
@@ -1085,23 +1133,25 @@ class NginxCollectdTest(TestCase):
 
     def _validate_single_record(self, expected_record, actual_record):
         self.assertIsNotNone(actual_record)
-        self.assertEquals(expected_record.metric_name, actual_record.metric_name)
-        self.assertEquals(expected_record.metric_type, actual_record.metric_type)
-        self.assertEquals(expected_record.metric_value, actual_record.metric_value)
+        self.assertEquals(expected_record.name, actual_record.name)
+        self.assertEquals(expected_record.type, actual_record.type)
+        self.assertEquals(expected_record.value, actual_record.value)
         self.assertEquals(expected_record.instance_id, actual_record.instance_id)
         self.assertDictEqual(expected_record.dimensions, actual_record.dimensions)
         self.assertIsNotNone(actual_record.timestamp)
 
     def _verify_records_captured(self, expected_records):
         for expected_record in expected_records:
-            self.assertIsNotNone(next((record for record in self.mock_sink.captured_records if self._compare_records(expected_record, record)), None),
-            'Captured records does not contain: ' + expected_record.to_string() + ' captured records: {}'.format([record.to_string() for record in self.mock_sink.captured_records]))
+            self.assertIsNotNone(next((record for record in self.mock_sink.captured_records\
+                if self._compare_records(expected_record, record)), None),
+            'Captured records does not contain: ' + expected_record.to_string() +\
+            ' captured records: {}'.format([record.to_string() for record in self.mock_sink.captured_records]))
 
     def _compare_records(self, expected_record, actual_record):
         try:
             self._validate_single_record(expected_record, actual_record)
             return True
-        except Exception as ex:
+        except Exception:
             pass
         return False
 

@@ -17,7 +17,7 @@ class MetricDefinition:
     '''
     def __init__(self, name, metric_type, scoped_object_key):
         self.name = name
-        self.metric_type = metric_type
+        self.type = metric_type
         self.scoped_object_key = scoped_object_key
 
 class MetricEmitter:
@@ -50,18 +50,19 @@ class MetricRecord:
     Struct for all information needed to emit a single collectd metric.
     MetricSink is the expected consumer of instances of this class.
     '''
-    TO_STRING_FORMAT = '[metric_name={},metric_type={},metric_value={},instance_id={},dimensions={},timestamp={}]'
+    TO_STRING_FORMAT = '[name={},type={},value={},instance_id={},dimensions={},timestamp={}]'
 
-    def __init__(self, metric_name, metric_type, metric_value, instance_id, dimensions=None, timestamp=None):
-        self.metric_name = metric_name
-        self.metric_type = metric_type
-        self.metric_value = metric_value
+    def __init__(self, name, metric_type, value, instance_id, dimensions=None, timestamp=None):
+        self.name = name
+        self.type = metric_type
+        self.value = value
         self.instance_id = instance_id
         self.dimensions = dimensions or {}
         self.timestamp = timestamp or time.time()
 
     def to_string(self):
-        return MetricRecord.TO_STRING_FORMAT.format(self.metric_name, self.metric_type, self.metric_value, self.instance_id, self.dimensions, self.timestamp)
+        return MetricRecord.TO_STRING_FORMAT.format(self.name, self.type, self.value,\
+            self.instance_id, self.dimensions, self.timestamp)
 
 class MetricSink:
     '''
@@ -76,9 +77,9 @@ class MetricSink:
 
         emit_value.time = metric_record.timestamp
         emit_value.plugin = 'nginx-plus'
-        emit_value.values = [metric_record.metric_value]
-        emit_value.type = metric_record.metric_type
-        emit_value.type_instance = metric_record.metric_name
+        emit_value.values = [metric_record.value]
+        emit_value.type = metric_record.type
+        emit_value.type_instance = metric_record.name
         emit_value.plugin_instance = metric_record.instance_id
         emit_value.plugin_instance += '[{}]'.format(metric_record.dimensions)
 
@@ -320,8 +321,9 @@ class NginxPlusPlugin:
         '''
         LOGGER.debug('Emitting stream-upstreams metrics')
 
-        stream_upstreams_obj = _reduce_to_path(status_json, 'stream.upstreams')
-        self._build_container_keyed_peer_metrics(stream_upstreams_obj, 'stream.upstream.name', 'stream.upstream.peer.name', metrics, sink)
+        upstreams_obj = _reduce_to_path(status_json, 'stream.upstreams')
+        self._build_container_keyed_peer_metrics(upstreams_obj, 'stream.upstream.name', 'stream.upstream.peer.name',\
+            metrics, sink)
 
     def _emit_memory_zone_metrics(self, status_json, metrics, sink):
         '''
@@ -341,7 +343,7 @@ class NginxPlusPlugin:
         cache_obj = _reduce_to_path(status_json, 'caches')
         self._build_container_keyed_metrics(cache_obj, 'cache.name', metrics, sink)
 
-    def _build_container_keyed_metrics(self, containers_obj, container_dimension_name, metrics, sink):
+    def _build_container_keyed_metrics(self, containers_obj, container_dim_name, metrics, sink):
         '''
         Build metrics with a single dimension: the name of the top level object.
 
@@ -359,20 +361,21 @@ class NginxPlusPlugin:
         Example:
             Args:
                 containers_obj: the above object
-                container_dimension_name: "server.zone.name"
+                container_dim_name: "server.zone.name"
                 metrics: [MetricDefinition('server.zone.value', 'counter', 'value')]
 
             Produces:
-                MetricRecord('server.zone.value', 'counter', 87, self.instance_id, {'server.zone.name' : 'my_server_zone_name'})
+                MetricRecord('server.zone.value', 'counter', 87, self.instance_id,
+                    {'server.zone.name' : 'my_server_zone_name'})
         '''
         if containers_obj:
             for container_name, container in containers_obj.iteritems():
-                dimensions = {container_dimension_name : container_name}
+                dimensions = {container_dim_name : container_name}
                 self._fetch_and_emit_metrics(container, metrics, dimensions, sink)
 
-    def _build_container_keyed_peer_metrics(self, containers_obj, container_dimension_name, peer_dimension_name, metrics, sink):
+    def _build_container_keyed_peer_metrics(self, containers_obj, container_dim_name, peer_dim_name, metrics, sink):
         '''
-        Build metrics with two dimensions: the name of the top level object and the name of each constituent object (peer).
+        Build metrics with two dimensions: name of the top level object and the name of each constituent object (peer).
 
         Upstream metrics are given in the format:
         {
@@ -400,13 +403,16 @@ class NginxPlusPlugin:
         Example:
             Args:
                 containers_obj: the above object
-                container_dimension_name: "upstream.name"
-                peer_dimension_name: "upstream.peer.name"
+                container_dim_name: "upstream.name"
+                peer_dim_name: "upstream.peer.name"
                 metrics: [MetricDefinition('upstreams.value', 'counter', 'value')]
 
             Produces:
-                MetricRecord('upstreams.value', 'counter', 5, self.instance_id, {'upstream.name' : 'my_upstream_name', 'upstream.peer.name' : 'foo'})
-                MetricRecord('upstreams.value', 'counter', 27, self.instance_id, {'upstream.name' : 'my_upstream_name'', 'upstream.peer.name' : 'bar'})
+                MetricRecord('upstreams.value', 'counter', 5, self.instance_id,
+                    {'upstream.name' : 'my_upstream_name', 'upstream.peer.name' : 'foo'})
+
+                MetricRecord('upstreams.value', 'counter', 27, self.instance_id,
+                    {'upstream.name' : 'my_upstream_name'', 'upstream.peer.name' : 'bar'})
         '''
         if containers_obj:
             # Each key in the container object is the name of the container
@@ -414,7 +420,7 @@ class NginxPlusPlugin:
                 # Each container is has multiple peer servers, this is where the metric values are pulled from
                 for peer in container['peers']:
                     # Get the dimensions from each peer server
-                    dimensions = {container_dimension_name : container_name, peer_dimension_name : _reduce_to_path(peer, 'name')}
+                    dimensions = {container_dim_name : container_name, peer_dim_name : _reduce_to_path(peer, 'name')}
                     self._fetch_and_emit_metrics(peer, metrics, dimensions, sink)
 
     def _fetch_and_emit_metrics(self, scoped_obj, metrics, dimensions, sink):
@@ -424,9 +430,9 @@ class NginxPlusPlugin:
         be passed in on the emit.
         '''
         for metric in metrics:
-            metric_value = _reduce_to_path(scoped_obj, metric.scoped_object_key)
-            if metric_value is not None:
-                sink.emit(MetricRecord(metric.name, metric.metric_type, metric_value, self.instance_id, dimensions, time.time()))
+            value = _reduce_to_path(scoped_obj, metric.scoped_object_key)
+            if value is not None:
+                sink.emit(MetricRecord(metric.name, metric.type, value, self.instance_id, dimensions, time.time()))
 
     def _check_config_metric_group_enabled(self, config_node, key):
         '''
@@ -503,7 +509,8 @@ class NginxStatusAgent:
             if response.status_code == requests.codes.ok:
                 status = response.json()
             else:
-                LOGGER.error('Unexpected status code: {}, received when fetching status from {}'.format(response.status_code, self.status_url))
+                LOGGER.error('Unexpected status code: {}, received when fetching status from {}'\
+                    .format(response.status_code, self.status_url))
         except Exception as e:
             LOGGER.exception('Failed to retrieve status from {}. {}'.format(self.status_url, e))
         return status
