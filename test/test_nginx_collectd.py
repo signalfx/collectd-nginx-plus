@@ -7,7 +7,6 @@ import random
 from mock import Mock, MagicMock
 
 # Mock out the collectd module
-# TODO: Write a mock implementation of collectd instead of just stubbing
 sys.modules['collectd'] = Mock()
 
 from unittest import TestCase

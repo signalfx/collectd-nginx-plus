@@ -40,9 +40,10 @@ class MetricSink:
         emit_value.time = metric_record.timestamp
         emit_value.plugin = 'nginx-plus'
         emit_value.values = [metric_record.metric_value]
-        emit_value.type = metric_record.metric_name
+        emit_value.type = metric_record.metric_type
+        emit_value.type_instance = metric_record.metric_name
         emit_value.plugin_instance = metric_record.instance_id
-        emit_value.plugin_instance += '[{dimensions}]'.format(dimensions=metric_record.dimensions)
+        emit_value.plugin_instance += '[{}]'.format(metric_record.dimensions)
 
         # With some versions of CollectD, a dummy metadata map must to be added
         # to each value for it to be correctly serialized to JSON by the
@@ -160,7 +161,6 @@ class NginxPlusPlugin:
         self.emitters = []
 
         self._instance_id = None
-
 
     @property
     def instance_id(self):
@@ -454,8 +454,8 @@ class CollectdValuesMock:
         attrs = []
         for name in dir(self):
             if not name.startswith('_') and name is not 'dispatch':
-                attrs.append("{0}={1}".format(name, getattr(self, name)))
-        return "<CollectdValues {0}>".format(' '.join(attrs))
+                attrs.append("{}={}".format(name, getattr(self, name)))
+        return "<CollectdValues {}>".format(' '.join(attrs))
 
 class CollectdConfigMock:
     def __init__(self, children=None):
