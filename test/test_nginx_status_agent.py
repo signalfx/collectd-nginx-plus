@@ -2,6 +2,7 @@
 import random
 import string
 from unittest import TestCase
+from requests import HTTPError
 from mock import Mock, MagicMock, patch
 from plugin.nginx_plus_collectd import NginxStatusAgent
 
@@ -38,7 +39,7 @@ class NginxStatusAgentTest(TestCase):
 
     @patch('requests.get')
     def test_none_on_exception(self, mock_requests_get):
-        mock_requests_get.side_effect = Exception('Thrown from test_none_on_exception')
+        mock_requests_get.side_effect = HTTPError('Thrown from test_none_on_exception')
 
         response = self.agent._send_get('http://demo.nginx.com/status')
         self.assertIsNone(response)

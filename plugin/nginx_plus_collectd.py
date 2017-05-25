@@ -4,6 +4,7 @@ import sys
 import time
 import logging
 import requests
+from requests.exceptions import RequestException
 
 class MetricDefinition:
     '''
@@ -624,8 +625,8 @@ class NginxStatusAgent:
                 status = response.json()
             else:
                 LOGGER.error('Unexpected status code: {}, received from {}'.format(response.status_code, url))
-        except Exception as e:
-            LOGGER.exception('Failed request from {}. {}'.format(self.base_status_url, e))
+        except RequestException as e:
+            LOGGER.exception('Failed request to {}. {}'.format(self.base_status_url, e))
         return status
 
 
