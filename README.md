@@ -22,6 +22,7 @@ The available configuration options are detailed below.
 |:--------|:-----------|
 | StatusHost | IP address or DNS of the NGINX+ instance to retrieve status information from. Defaults to `localhost`. |
 | StatusPort | Port the NGINX+ status endpoint can be reached at. Defaults to `8080`. |
+| DebugLogLevel | Enable logging at DEBUG level. |
 
 Example addition to the collectd configuration:
 
@@ -35,6 +36,7 @@ LoadPlugin python
   <Module nginx_plus_collectd>
     StatusHost "localhost"
     StatusPort 8080
+    DebugLogLevel true
   </Module>
 </Plugin>
 ```

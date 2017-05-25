@@ -17,7 +17,7 @@ from plugin.nginx_plus_collectd import NginxPlusPlugin, MetricRecord, MetricDefi
                                         MEMORY_ZONE_METRICS, MEMORY_ZONE, UPSTREAM_METRICS, UPSTREAM,\
                                         CACHE_METRICS, CACHE, STREAM_SERVER_ZONE_METRICS, STREAM_SERVER_ZONE,\
                                         STREAM_UPSTREAM_METRICS, STREAM_UPSTREAM, STATUS_HOST, STATUS_PORT,\
-                                        DEFAULT_SSL_METRICS, DEFAULT_REQUESTS_METRICS
+                                        DEFAULT_SSL_METRICS, DEFAULT_REQUESTS_METRICS, DEBUG_LOG_LEVEL, log_handler
 
 class NginxCollectdTest(TestCase):
     def setUp(self):
@@ -172,6 +172,17 @@ class NginxCollectdTest(TestCase):
 
         self.assertEquals(expected_ip, self.plugin.nginx_agent.status_host)
         self.assertEquals(expected_port, self.plugin.nginx_agent.status_port)
+
+    def test_config_callback_debug_logging(self):
+        mock_config = Mock()
+        mock_config_child = Mock()
+        mock_config_child.key = DEBUG_LOG_LEVEL
+        mock_config_child.values = ['true']
+
+        mock_config.children = [mock_config_child]
+
+        self.plugin.config_callback(mock_config)
+        self.assertTrue(log_handler.debug)
 
     def test_read_callback(self):
         mock_emitter_1 = Mock()

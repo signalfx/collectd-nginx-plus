@@ -92,6 +92,7 @@ class MetricSink:
 # Server configueration flags
 STATUS_HOST = 'StatusHost'
 STATUS_PORT = 'StatusPort'
+DEBUG_LOG_LEVEL = 'DebugLogLevel'
 
 # Metric group configuration flags
 SERVER_ZONE = 'ServerZone'
@@ -109,8 +110,8 @@ DEFAULT_CONNECTION_METRICS = [
 ]
 
 DEFAULT_SSL_METRICS = [
-    MetricDefinition('ssl.handshakes.successful', 'counter', 'handshakes.handshakes'),
-    MetricDefinition('ssl.handshakes.failed', 'counter', 'handshakes.handshakes_failed')
+    MetricDefinition('ssl.handshakes.successful', 'counter', 'handshakes'),
+    MetricDefinition('ssl.handshakes.failed', 'counter', 'handshakes_failed')
 ]
 
 DEFAULT_REQUESTS_METRICS = [
@@ -229,22 +230,24 @@ class NginxPlusPlugin:
                 status_host = node.values[0]
             elif node.key == STATUS_PORT:
                 status_port = node.values[0]
-            elif self._check_config_metric_group_enabled(node, CACHE):
+            elif self._check_bool_config_enabled(node, DEBUG_LOG_LEVEL):
+                log_handler.debug = self._str_to_bool(node.values[0])
+            elif self._check_bool_config_enabled(node, CACHE):
                 self._log_emitter_group_enabled(CACHE)
                 self.emitters.append(MetricEmitter(self._emit_cache_metrics, CACHE_METRICS))
-            elif self._check_config_metric_group_enabled(node, UPSTREAM):
+            elif self._check_bool_config_enabled(node, UPSTREAM):
                 self._log_emitter_group_enabled(UPSTREAM)
                 self.emitters.append(MetricEmitter(self._emit_upstreams_metrics, UPSTREAM_METRICS))
-            elif self._check_config_metric_group_enabled(node, MEMORY_ZONE):
+            elif self._check_bool_config_enabled(node, MEMORY_ZONE):
                 self._log_emitter_group_enabled(MEMORY_ZONE)
                 self.emitters.append(MetricEmitter(self._emit_memory_zone_metrics, MEMORY_ZONE_METRICS))
-            elif self._check_config_metric_group_enabled(node, SERVER_ZONE):
+            elif self._check_bool_config_enabled(node, SERVER_ZONE):
                 self._log_emitter_group_enabled(SERVER_ZONE)
                 self.emitters.append(MetricEmitter(self._emit_server_zone_metrics, SERVER_ZONE_METRICS))
-            elif self._check_config_metric_group_enabled(node, STREAM_UPSTREAM):
+            elif self._check_bool_config_enabled(node, STREAM_UPSTREAM):
                 self._log_emitter_group_enabled(STREAM_UPSTREAM)
                 self.emitters.append(MetricEmitter(self._emit_stream_upstreams_metrics, STREAM_UPSTREAM_METRICS))
-            elif self._check_config_metric_group_enabled(node, STREAM_SERVER_ZONE):
+            elif self._check_bool_config_enabled(node, STREAM_SERVER_ZONE):
                 self._log_emitter_group_enabled(STREAM_SERVER_ZONE)
                 self.emitters.append(MetricEmitter(self._emit_stream_server_zone_metrics, STREAM_SERVER_ZONE_METRICS))
 
@@ -460,7 +463,7 @@ class NginxPlusPlugin:
             if value is not None:
                 sink.emit(MetricRecord(metric.name, metric.type, value, self.instance_id, dimensions, time.time()))
 
-    def _check_config_metric_group_enabled(self, config_node, key):
+    def _check_bool_config_enabled(self, config_node, key):
         '''
         Convenience method to check if a collectd Config node contains the given
         key and if that key's value is a True bool.
@@ -760,10 +763,11 @@ class CollectdConfigChildMock:
 
 
 # Set up logging
+log_handler = CollectdLogHandler('nginx-plus-collectd', False)
 LOGGER = logging.getLogger(__name__)
 LOGGER.setLevel(logging.DEBUG)
 LOGGER.propagate = False
-LOGGER.addHandler(CollectdLogHandler('nginx-plus-collectd', False))
+LOGGER.addHandler(log_handler)
 
 if __name__ == '__main__':
     status_host = sys.argv[1] if len(sys.argv) > 1 else 'demo.nginx.com'
@@ -773,6 +777,7 @@ if __name__ == '__main__':
 
     mock_config_ip_child = CollectdConfigChildMock(STATUS_HOST, [status_host])
     mock_config_port_child = CollectdConfigChildMock(STATUS_PORT, [status_port])
+    mock_config_debug_log_level = CollectdConfigChildMock(DEBUG_LOG_LEVEL, ['true'])
 
     # Setup the mock config to enable all metric groups
     mock_config_server_zone_child = CollectdConfigChildMock(SERVER_ZONE, ['true'])
@@ -784,6 +789,7 @@ if __name__ == '__main__':
 
     mock_config = CollectdConfigMock([mock_config_ip_child,
                                       mock_config_port_child,
+                                      mock_config_debug_log_level,
                                       mock_config_server_zone_child,
                                       mock_config_memory_zone_child,
                                       mock_config_upstream_child,
