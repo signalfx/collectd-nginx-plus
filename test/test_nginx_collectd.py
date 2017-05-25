@@ -16,32 +16,26 @@ from plugin.nginx_plus_collectd import NginxPlusPlugin, MetricRecord, MetricDefi
                                         DEFAULT_STREAM_UPSTREAM_METRICS, SERVER_ZONE_METRICS, SERVER_ZONE,\
                                         MEMORY_ZONE_METRICS, MEMORY_ZONE, UPSTREAM_METRICS, UPSTREAM,\
                                         CACHE_METRICS, CACHE, STREAM_SERVER_ZONE_METRICS, STREAM_SERVER_ZONE,\
-                                        STREAM_UPSTREAM_METRICS, STREAM_UPSTREAM, STATUS_HOST, STATUS_PORT
+                                        STREAM_UPSTREAM_METRICS, STREAM_UPSTREAM, STATUS_HOST, STATUS_PORT,\
+                                        DEFAULT_SSL_METRICS, DEFAULT_REQUESTS_METRICS
 
 class NginxCollectdTest(TestCase):
     def setUp(self):
         self.plugin = NginxPlusPlugin()
         self.plugin._instance_id = self._random_string()
         self.mock_sink = MockMetricSink()
+        self.plugin.nginx_agent = self._build_mock_nginx_agent()
 
     def test_instance_id_set(self):
-        expected_instance_id = '206.251.255.64'
-        status_json = self._read_test_resource_json('resources/status_response.json')
-
-        mock_nginx_agent = Mock()
-        mock_nginx_agent.get_status = MagicMock(return_value=status_json)
-
+        expected_instance_id = '206.251.255.64' # Mocked response for get_nginx_version, see _build_mock_nginx_agent()
         self.plugin._instance_id = None
-        self.plugin.nginx_agent = mock_nginx_agent
 
         actual_instance_id = self.plugin.instance_id
         self.assertEquals(expected_instance_id, actual_instance_id)
 
     def test_no_emit_invalid_path(self):
-        status_json = self._read_test_resource_json('resources/status_response.json')
-
         metrics = [MetricDefinition('connection.accepted', 'counter', 'foo.bar')]
-        self.plugin._emit_top_level_metrics(status_json, metrics, self.mock_sink)
+        self.plugin._emit_connection_metrics(metrics, self.mock_sink)
 
         self.assertEquals(0, len(self.mock_sink.captured_records))
 
@@ -180,30 +174,21 @@ class NginxCollectdTest(TestCase):
         self.assertEquals(expected_port, self.plugin.nginx_agent.status_port)
 
     def test_read_callback(self):
-        status_json = self._read_test_resource_json('resources/status_response.json')
-
-        mock_nginx_agent = Mock()
-        mock_nginx_agent.get_status = MagicMock(return_value=status_json)
-
         mock_emitter_1 = Mock()
         mock_emitter_2 = Mock()
-
         mock_sink = Mock()
 
         self.plugin.sink = mock_sink
-        self.plugin.nginx_agent = mock_nginx_agent
         self.plugin.emitters = [mock_emitter_1, mock_emitter_2]
 
         self.plugin.read_callback()
 
-        mock_emitter_1.emit.assert_called_with(status_json, mock_sink)
-        mock_emitter_2.emit.assert_called_with(status_json, mock_sink)
+        mock_emitter_1.emit.assert_called_with(mock_sink)
+        mock_emitter_2.emit.assert_called_with(mock_sink)
 
     def test_read_callback_null_instance_id(self):
-        status_json = {'foo' : 'bar'} # Does not include address, which is used for instance id
-
         mock_nginx_agent = Mock()
-        mock_nginx_agent.get_status = MagicMock(return_value=status_json)
+        mock_nginx_agent.get_nginx_address = MagicMock(return_value=None)
 
         mock_emitter_1 = Mock()
         mock_emitter_2 = Mock()
@@ -220,152 +205,128 @@ class NginxCollectdTest(TestCase):
         mock_emitter_2.assert_not_called()
 
     def test_connections_accepted(self):
-        status_json = self._read_test_resource_json('resources/status_response.json')
-
-        metrics = [MetricDefinition('connections.accepted', 'counter', 'connections.accepted')]
-        expected_record = MetricRecord('connections.accepted', 'counter', 14527228, self.plugin.instance_id,
+        metrics = [MetricDefinition('connections.accepted', 'counter', 'accepted')]
+        expected_record = MetricRecord('connections.accepted', 'counter', 18717986, self.plugin.instance_id,
                                        {'nginx.version' : '1.11.10'})
 
-        self.plugin._emit_top_level_metrics(status_json, metrics, self.mock_sink)
+        self.plugin._emit_connection_metrics(metrics, self.mock_sink)
 
         self.assertEquals(1, len(self.mock_sink.captured_records))
         self._validate_single_record(expected_record, self.mock_sink.captured_records[0])
 
     def test_connections_dropped(self):
-        status_json = self._read_test_resource_json('resources/status_response.json')
-
-        metrics = [MetricDefinition('connections.dropped', 'counter', 'connections.dropped')]
+        metrics = [MetricDefinition('connections.dropped', 'counter', 'dropped')]
         expected_record = MetricRecord('connections.dropped', 'counter', 0, self.plugin.instance_id,
                                        {'nginx.version' : '1.11.10'})
 
-        self.plugin._emit_top_level_metrics(status_json, metrics, self.mock_sink)
+        self.plugin._emit_connection_metrics(metrics, self.mock_sink)
 
         self.assertEquals(1, len(self.mock_sink.captured_records))
         self._validate_single_record(expected_record, self.mock_sink.captured_records[0])
 
     def test_connections_idle(self):
-        status_json = self._read_test_resource_json('resources/status_response.json')
-
-        metrics = [MetricDefinition('connections.idle', 'counter', 'connections.idle')]
-        expected_record = MetricRecord('connections.idle', 'counter', 45, self.plugin.instance_id,
+        metrics = [MetricDefinition('connections.idle', 'counter', 'idle')]
+        expected_record = MetricRecord('connections.idle', 'counter', 44, self.plugin.instance_id,
                                        {'nginx.version' : '1.11.10'})
 
-        self.plugin._emit_top_level_metrics(status_json, metrics, self.mock_sink)
+        self.plugin._emit_connection_metrics(metrics, self.mock_sink)
 
         self.assertEquals(1, len(self.mock_sink.captured_records))
         self._validate_single_record(expected_record, self.mock_sink.captured_records[0])
 
     def test_ssl_successful(self):
-        status_json = self._read_test_resource_json('resources/status_response.json')
-
-        metrics = [MetricDefinition('ssl.handshakes.successful', 'counter', 'ssl.handshakes')]
-        expected_record = MetricRecord('ssl.handshakes.successful', 'counter', 166597, self.plugin.instance_id,
+        metrics = [MetricDefinition('ssl.handshakes.successful', 'counter', 'handshakes')]
+        expected_record = MetricRecord('ssl.handshakes.successful', 'counter', 172619, self.plugin.instance_id,
                                        {'nginx.version' : '1.11.10'})
 
-        self.plugin._emit_top_level_metrics(status_json, metrics, self.mock_sink)
+        self.plugin._emit_ssl_metrics(metrics, self.mock_sink)
 
         self.assertEquals(1, len(self.mock_sink.captured_records))
         self._validate_single_record(expected_record, self.mock_sink.captured_records[0])
 
     def test_ssl_failed(self):
-        status_json = self._read_test_resource_json('resources/status_response.json')
-
-        metrics = [MetricDefinition('ssl.handshakes.failed', 'counter', 'ssl.handshakes_failed')]
-        expected_record = MetricRecord('ssl.handshakes.failed', 'counter', 26154, self.plugin.instance_id,
+        metrics = [MetricDefinition('ssl.handshakes.failed', 'counter', 'handshakes_failed')]
+        expected_record = MetricRecord('ssl.handshakes.failed', 'counter', 32483, self.plugin.instance_id,
                                        {'nginx.version' : '1.11.10'})
 
-        self.plugin._emit_top_level_metrics(status_json, metrics, self.mock_sink)
+        self.plugin._emit_ssl_metrics(metrics, self.mock_sink)
 
         self.assertEquals(1, len(self.mock_sink.captured_records))
         self._validate_single_record(expected_record, self.mock_sink.captured_records[0])
 
     def test_requests_total(self):
-        status_json = self._read_test_resource_json('resources/status_response.json')
-
-        metrics = [MetricDefinition('requests.total', 'counter', 'requests.total')]
-        expected_record = MetricRecord('requests.total', 'counter', 43878009, self.plugin.instance_id,
+        metrics = [MetricDefinition('requests.total', 'counter', 'total')]
+        expected_record = MetricRecord('requests.total', 'counter', 56371877, self.plugin.instance_id,
                                        {'nginx.version' : '1.11.10'})
 
-        self.plugin._emit_top_level_metrics(status_json, metrics, self.mock_sink)
+        self.plugin._emit_requests_metrics(metrics, self.mock_sink)
 
         self.assertEquals(1, len(self.mock_sink.captured_records))
         self._validate_single_record(expected_record, self.mock_sink.captured_records[0])
 
     def test_requests_current(self):
-        status_json = self._read_test_resource_json('resources/status_response.json')
-
-        metrics = [MetricDefinition('requests.current', 'counter', 'requests.current')]
-        expected_record = MetricRecord('requests.current', 'counter', 5, self.plugin.instance_id,
+        metrics = [MetricDefinition('requests.current', 'counter', 'current')]
+        expected_record = MetricRecord('requests.current', 'counter', 6, self.plugin.instance_id,
                                        {'nginx.version' : '1.11.10'})
 
-        self.plugin._emit_top_level_metrics(status_json, metrics, self.mock_sink)
+        self.plugin._emit_requests_metrics(metrics, self.mock_sink)
 
         self.assertEquals(1, len(self.mock_sink.captured_records))
         self._validate_single_record(expected_record, self.mock_sink.captured_records[0])
 
     def test_server_zone_requests(self):
-        status_json = self._read_test_resource_json('resources/status_response.json')
-
         metrics = [MetricDefinition('server.zone.requests', 'counter', 'requests')]
-        expected_record_1 = MetricRecord('server.zone.requests', 'counter', 465034, self.plugin.instance_id,
+        expected_record_1 = MetricRecord('server.zone.requests', 'counter', 840824, self.plugin.instance_id,
                                         {'server.zone.name' : 'hg.nginx.org'})
-        expected_record_2 = MetricRecord('server.zone.requests', 'counter', 384296, self.plugin.instance_id,
+        expected_record_2 = MetricRecord('server.zone.requests', 'counter', 343611, self.plugin.instance_id,
                                         {'server.zone.name' : 'trac.nginx.org'})
         expected_records = [expected_record_1, expected_record_2]
 
-        self.plugin._emit_server_zone_metrics(status_json, metrics, self.mock_sink)
+        self.plugin._emit_server_zone_metrics(metrics, self.mock_sink)
 
         self.assertEquals(len(expected_records), len(self.mock_sink.captured_records))
         self._verify_records_captured(expected_records)
 
     def test_server_zone_processing(self):
-        status_json = self._read_test_resource_json('resources/status_response.json')
-
         metrics = [MetricDefinition('server.zone.processing', 'counter', 'processing')]
-        expected_record_1 = MetricRecord('server.zone.processing', 'counter', 0, self.plugin.instance_id,
+        expected_record_1 = MetricRecord('server.zone.processing', 'counter', 1, self.plugin.instance_id,
             {'server.zone.name' : 'hg.nginx.org'})
-        expected_record_2 = MetricRecord('server.zone.processing', 'counter', 3, self.plugin.instance_id,
+        expected_record_2 = MetricRecord('server.zone.processing', 'counter', 5, self.plugin.instance_id,
             {'server.zone.name' : 'trac.nginx.org'})
         expected_records = [expected_record_1, expected_record_2]
 
-        self.plugin._emit_server_zone_metrics(status_json, metrics, self.mock_sink)
+        self.plugin._emit_server_zone_metrics(metrics, self.mock_sink)
 
         self.assertEquals(len(expected_records), len(self.mock_sink.captured_records))
         self._verify_records_captured(expected_records)
 
     def test_server_zone_discarded(self):
-        status_json = self._read_test_resource_json('resources/status_response.json')
-
         metrics = [MetricDefinition('server.zone.discarded', 'counter', 'discarded')]
-        expected_record_1 = MetricRecord('server.zone.discarded', 'counter', 457, self.plugin.instance_id,
+        expected_record_1 = MetricRecord('server.zone.discarded', 'counter', 17156, self.plugin.instance_id,
             {'server.zone.name' : 'hg.nginx.org'})
-        expected_record_2 = MetricRecord('server.zone.discarded', 'counter', 41974, self.plugin.instance_id,
+        expected_record_2 = MetricRecord('server.zone.discarded', 'counter', 46268, self.plugin.instance_id,
             {'server.zone.name' : 'trac.nginx.org'})
         expected_records = [expected_record_1, expected_record_2]
 
-        self.plugin._emit_server_zone_metrics(status_json, metrics, self.mock_sink)
+        self.plugin._emit_server_zone_metrics(metrics, self.mock_sink)
 
         self.assertEquals(len(expected_records), len(self.mock_sink.captured_records))
         self._verify_records_captured(expected_records)
 
     def test_server_zone_responses_total(self):
-        status_json = self._read_test_resource_json('resources/status_response.json')
-
         metrics = [MetricDefinition('server.zone.responses.total', 'counter', 'responses.total')]
-        expected_record_1 = MetricRecord('server.zone.responses.total', 'counter', 464577, self.plugin.instance_id,
+        expected_record_1 = MetricRecord('server.zone.responses.total', 'counter', 823667, self.plugin.instance_id,
             {'server.zone.name' : 'hg.nginx.org'})
-        expected_record_2 = MetricRecord('server.zone.responses.total', 'counter', 342319, self.plugin.instance_id,
+        expected_record_2 = MetricRecord('server.zone.responses.total', 'counter', 297338, self.plugin.instance_id,
             {'server.zone.name' : 'trac.nginx.org'})
         expected_records = [expected_record_1, expected_record_2]
 
-        self.plugin._emit_server_zone_metrics(status_json, metrics, self.mock_sink)
+        self.plugin._emit_server_zone_metrics(metrics, self.mock_sink)
 
         self.assertEquals(len(expected_records), len(self.mock_sink.captured_records))
         self._verify_records_captured(expected_records)
 
     def test_server_zone_responses_1xx(self):
-        status_json = self._read_test_resource_json('resources/status_response.json')
-
         metrics = [MetricDefinition('server.zone.responses.1xx', 'counter', 'responses.1xx')]
         expected_record_1 = MetricRecord('server.zone.responses.1xx', 'counter', 0, self.plugin.instance_id,
             {'server.zone.name' : 'hg.nginx.org'})
@@ -373,191 +334,167 @@ class NginxCollectdTest(TestCase):
             {'server.zone.name' : 'trac.nginx.org'})
         expected_records = [expected_record_1, expected_record_2]
 
-        self.plugin._emit_server_zone_metrics(status_json, metrics, self.mock_sink)
+        self.plugin._emit_server_zone_metrics(metrics, self.mock_sink)
 
         self.assertEquals(len(expected_records), len(self.mock_sink.captured_records))
         self._verify_records_captured(expected_records)
 
     def test_server_zone_responses_2xx(self):
-        status_json = self._read_test_resource_json('resources/status_response.json')
-
         metrics = [MetricDefinition('server.zone.responses.2xx', 'counter', 'responses.2xx')]
-        expected_record_1 = MetricRecord('server.zone.responses.2xx', 'counter', 450715, self.plugin.instance_id,
+        expected_record_1 = MetricRecord('server.zone.responses.2xx', 'counter', 798579, self.plugin.instance_id,
             {'server.zone.name' : 'hg.nginx.org'})
-        expected_record_2 = MetricRecord('server.zone.responses.2xx', 'counter', 215961, self.plugin.instance_id,
+        expected_record_2 = MetricRecord('server.zone.responses.2xx', 'counter', 193319, self.plugin.instance_id,
             {'server.zone.name' : 'trac.nginx.org'})
         expected_records = [expected_record_1, expected_record_2]
 
-        self.plugin._emit_server_zone_metrics(status_json, metrics, self.mock_sink)
+        self.plugin._emit_server_zone_metrics(metrics, self.mock_sink)
 
         self.assertEquals(len(expected_records), len(self.mock_sink.captured_records))
         self._verify_records_captured(expected_records)
 
     def test_server_zone_responses_3xx(self):
-        status_json = self._read_test_resource_json('resources/status_response.json')
-
         metrics = [MetricDefinition('server.zone.responses.3xx', 'counter', 'responses.3xx')]
-        expected_record_1 = MetricRecord('server.zone.responses.3xx', 'counter', 7834, self.plugin.instance_id,
+        expected_record_1 = MetricRecord('server.zone.responses.3xx', 'counter', 10110, self.plugin.instance_id,
             {'server.zone.name' : 'hg.nginx.org'})
-        expected_record_2 = MetricRecord('server.zone.responses.3xx', 'counter', 78603, self.plugin.instance_id,
+        expected_record_2 = MetricRecord('server.zone.responses.3xx', 'counter', 79960, self.plugin.instance_id,
             {'server.zone.name' : 'trac.nginx.org'})
         expected_records = [expected_record_1, expected_record_2]
 
-        self.plugin._emit_server_zone_metrics(status_json, metrics, self.mock_sink)
+        self.plugin._emit_server_zone_metrics(metrics, self.mock_sink)
 
         self.assertEquals(len(expected_records), len(self.mock_sink.captured_records))
         self._verify_records_captured(expected_records)
 
     def test_server_zone_responses_4xx(self):
-        status_json = self._read_test_resource_json('resources/status_response.json')
-
         metrics = [MetricDefinition('server.zone.responses.4xx', 'counter', 'responses.4xx')]
-        expected_record_1 = MetricRecord('server.zone.responses.4xx', 'counter', 5461, self.plugin.instance_id,
+        expected_record_1 = MetricRecord('server.zone.responses.4xx', 'counter', 1397, self.plugin.instance_id,
             {'server.zone.name' : 'hg.nginx.org'})
-        expected_record_2 = MetricRecord('server.zone.responses.4xx', 'counter', 22380, self.plugin.instance_id,
+        expected_record_2 = MetricRecord('server.zone.responses.4xx', 'counter', 3948, self.plugin.instance_id,
             {'server.zone.name' : 'trac.nginx.org'})
         expected_records = [expected_record_1, expected_record_2]
 
-        self.plugin._emit_server_zone_metrics(status_json, metrics, self.mock_sink)
+        self.plugin._emit_server_zone_metrics(metrics, self.mock_sink)
 
         self.assertEquals(len(expected_records), len(self.mock_sink.captured_records))
         self._verify_records_captured(expected_records)
 
     def test_server_zone_responses_5xx(self):
-        status_json = self._read_test_resource_json('resources/status_response.json')
-
         metrics = [MetricDefinition('server.zone.responses.5xx', 'counter', 'responses.5xx')]
-        expected_record_1 = MetricRecord('server.zone.responses.5xx', 'counter', 567, self.plugin.instance_id,
+        expected_record_1 = MetricRecord('server.zone.responses.5xx', 'counter', 13581, self.plugin.instance_id,
             {'server.zone.name' : 'hg.nginx.org'})
-        expected_record_2 = MetricRecord('server.zone.responses.5xx', 'counter', 25375, self.plugin.instance_id,
+        expected_record_2 = MetricRecord('server.zone.responses.5xx', 'counter', 20111, self.plugin.instance_id,
             {'server.zone.name' : 'trac.nginx.org'})
         expected_records = [expected_record_1, expected_record_2]
 
-        self.plugin._emit_server_zone_metrics(status_json, metrics, self.mock_sink)
+        self.plugin._emit_server_zone_metrics(metrics, self.mock_sink)
 
         self.assertEquals(len(expected_records), len(self.mock_sink.captured_records))
         self._verify_records_captured(expected_records)
 
     def test_server_zone_bytes_received(self):
-        status_json = self._read_test_resource_json('resources/status_response.json')
-
         metrics = [MetricDefinition('server.zone.bytes.received', 'counter', 'received')]
-        expected_record_1 = MetricRecord('server.zone.bytes.received', 'counter', 112274034, self.plugin.instance_id,
+        expected_record_1 = MetricRecord('server.zone.bytes.received', 'counter', 204533075, self.plugin.instance_id,
             {'server.zone.name' : 'hg.nginx.org'})
-        expected_record_2 = MetricRecord('server.zone.bytes.received', 'counter', 123130586, self.plugin.instance_id,
+        expected_record_2 = MetricRecord('server.zone.bytes.received', 'counter', 94118639, self.plugin.instance_id,
             {'server.zone.name' : 'trac.nginx.org'})
         expected_records = [expected_record_1, expected_record_2]
 
-        self.plugin._emit_server_zone_metrics(status_json, metrics, self.mock_sink)
+        self.plugin._emit_server_zone_metrics(metrics, self.mock_sink)
 
         self.assertEquals(len(expected_records), len(self.mock_sink.captured_records))
         self._verify_records_captured(expected_records)
 
     def test_server_zone_bytes_sent(self):
-        status_json = self._read_test_resource_json('resources/status_response.json')
-
         metrics = [MetricDefinition('server.zone.bytes.sent', 'counter', 'sent')]
-        expected_record_1 = MetricRecord('server.zone.bytes.sent', 'counter', 10968683492, self.plugin.instance_id,
+        expected_record_1 = MetricRecord('server.zone.bytes.sent', 'counter', 18080862536, self.plugin.instance_id,
             {'server.zone.name' : 'hg.nginx.org'})
-        expected_record_2 = MetricRecord('server.zone.bytes.sent', 'counter', 5740717145, self.plugin.instance_id,
+        expected_record_2 = MetricRecord('server.zone.bytes.sent', 'counter', 6327711264, self.plugin.instance_id,
             {'server.zone.name' : 'trac.nginx.org'})
         expected_records = [expected_record_1, expected_record_2]
 
-        self.plugin._emit_server_zone_metrics(status_json, metrics, self.mock_sink)
+        self.plugin._emit_server_zone_metrics(metrics, self.mock_sink)
 
         self.assertEquals(len(expected_records), len(self.mock_sink.captured_records))
         self._verify_records_captured(expected_records)
 
     def test_memory_zone_pages_used(self):
-        status_json = self._read_test_resource_json('resources/status_response.json')
-
         metrics = [MetricDefinition('zones.pages.used', 'counter', 'pages.used')]
         expected_record = MetricRecord('zones.pages.used', 'counter', 6, self.plugin.instance_id,
             {'memory.zone.name' : 'nginxorg'})
 
-        self.plugin._emit_memory_zone_metrics(status_json, metrics, self.mock_sink)
+        self.plugin._emit_memory_zone_metrics(metrics, self.mock_sink)
 
         self.assertEquals(1, len(self.mock_sink.captured_records))
         self._validate_single_record(expected_record, self.mock_sink.captured_records[0])
 
     def test_memory_zone_pages_free(self):
-        status_json = self._read_test_resource_json('resources/status_response.json')
-
         metrics = [MetricDefinition('zones.pages.free', 'counter', 'pages.free')]
         expected_record = MetricRecord('zones.pages.free', 'counter', 1, self.plugin.instance_id,
             {'memory.zone.name' : 'nginxorg'})
 
-        self.plugin._emit_memory_zone_metrics(status_json, metrics, self.mock_sink)
+        self.plugin._emit_memory_zone_metrics(metrics, self.mock_sink)
 
         self.assertEquals(1, len(self.mock_sink.captured_records))
         self._validate_single_record(expected_record, self.mock_sink.captured_records[0])
 
     def test_upstreams_requests(self):
-        status_json = self._read_test_resource_json('resources/status_response.json')
-
         metrics = [MetricDefinition('upstream.requests', 'counter', 'requests')]
-        expected_record_1 = MetricRecord('upstream.requests', 'counter', 104616, self.plugin.instance_id,
+        expected_record_1 = MetricRecord('upstream.requests', 'counter', 100378, self.plugin.instance_id,
             {'upstream.name' : 'trac-backend', 'upstream.peer.name' : '10.0.0.1:8080'})
         expected_record_2 = MetricRecord('upstream.requests', 'counter', 0, self.plugin.instance_id,
             {'upstream.name' : 'trac-backend', 'upstream.peer.name' : '10.0.0.1:8081'})
 
-        expected_record_3 = MetricRecord('upstream.requests', 'counter', 413822, self.plugin.instance_id,
+        expected_record_3 = MetricRecord('upstream.requests', 'counter', 750715, self.plugin.instance_id,
             {'upstream.name' : 'hg-backend', 'upstream.peer.name' : '10.0.0.1:8088'})
         expected_record_4 = MetricRecord('upstream.requests', 'counter', 0, self.plugin.instance_id,
             {'upstream.name' : 'hg-backend', 'upstream.peer.name' : '10.0.0.1:8089'})
 
         expected_records = [expected_record_1, expected_record_2, expected_record_3, expected_record_4]
 
-        self.plugin._emit_upstreams_metrics(status_json, metrics, self.mock_sink)
+        self.plugin._emit_upstreams_metrics(metrics, self.mock_sink)
 
         self.assertEquals(len(expected_records), len(self.mock_sink.captured_records))
         self._verify_records_captured(expected_records)
 
     def test_upstreams_active(self):
-        status_json = self._read_test_resource_json('resources/status_response.json')
-
         metrics = [MetricDefinition('upstreams.active', 'counter', 'active')]
         expected_record_1 = MetricRecord('upstreams.active', 'counter', 0, self.plugin.instance_id,
             {'upstream.name' : 'trac-backend', 'upstream.peer.name' : '10.0.0.1:8080'})
         expected_record_2 = MetricRecord('upstreams.active', 'counter', 0, self.plugin.instance_id,
             {'upstream.name' : 'trac-backend', 'upstream.peer.name' : '10.0.0.1:8081'})
 
-        expected_record_3 = MetricRecord('upstreams.active', 'counter', 0, self.plugin.instance_id,
+        expected_record_3 = MetricRecord('upstreams.active', 'counter', 1, self.plugin.instance_id,
             {'upstream.name' : 'hg-backend', 'upstream.peer.name' : '10.0.0.1:8088'})
         expected_record_4 = MetricRecord('upstreams.active', 'counter', 0, self.plugin.instance_id,
             {'upstream.name' : 'hg-backend', 'upstream.peer.name' : '10.0.0.1:8089'})
 
         expected_records = [expected_record_1, expected_record_2, expected_record_3, expected_record_4]
 
-        self.plugin._emit_upstreams_metrics(status_json, metrics, self.mock_sink)
+        self.plugin._emit_upstreams_metrics(metrics, self.mock_sink)
 
         self.assertEquals(len(expected_records), len(self.mock_sink.captured_records))
         self._verify_records_captured(expected_records)
 
     def test_upstreams_responses_total(self):
-        status_json = self._read_test_resource_json('resources/status_response.json')
-
         metrics = [MetricDefinition('upstreams.responses.total', 'counter', 'responses.total')]
-        expected_record_1 = MetricRecord('upstreams.responses.total', 'counter', 104616, self.plugin.instance_id,
+        expected_record_1 = MetricRecord('upstreams.responses.total', 'counter', 100378, self.plugin.instance_id,
             {'upstream.name' : 'trac-backend', 'upstream.peer.name' : '10.0.0.1:8080'})
         expected_record_2 = MetricRecord('upstreams.responses.total', 'counter', 0, self.plugin.instance_id,
             {'upstream.name' : 'trac-backend', 'upstream.peer.name' : '10.0.0.1:8081'})
 
-        expected_record_3 = MetricRecord('upstreams.responses.total', 'counter', 413822, self.plugin.instance_id,
+        expected_record_3 = MetricRecord('upstreams.responses.total', 'counter', 750714, self.plugin.instance_id,
             {'upstream.name' : 'hg-backend', 'upstream.peer.name' : '10.0.0.1:8088'})
         expected_record_4 = MetricRecord('upstreams.responses.total', 'counter', 0, self.plugin.instance_id,
             {'upstream.name' : 'hg-backend', 'upstream.peer.name' : '10.0.0.1:8089'})
 
         expected_records = [expected_record_1, expected_record_2, expected_record_3, expected_record_4]
 
-        self.plugin._emit_upstreams_metrics(status_json, metrics, self.mock_sink)
+        self.plugin._emit_upstreams_metrics(metrics, self.mock_sink)
 
         self.assertEquals(len(expected_records), len(self.mock_sink.captured_records))
         self._verify_records_captured(expected_records)
 
     def test_upstreams_responses_1xx(self):
-        status_json = self._read_test_resource_json('resources/status_response.json')
-
         metrics = [MetricDefinition('upstreams.responses.1xx', 'counter', 'responses.1xx')]
         expected_record_1 = MetricRecord('upstreams.responses.1xx', 'counter', 0, self.plugin.instance_id,
             {'upstream.name' : 'trac-backend', 'upstream.peer.name' : '10.0.0.1:8080'})
@@ -571,37 +508,33 @@ class NginxCollectdTest(TestCase):
 
         expected_records = [expected_record_1, expected_record_2, expected_record_3, expected_record_4]
 
-        self.plugin._emit_upstreams_metrics(status_json, metrics, self.mock_sink)
+        self.plugin._emit_upstreams_metrics(metrics, self.mock_sink)
 
         self.assertEquals(len(expected_records), len(self.mock_sink.captured_records))
         self._verify_records_captured(expected_records)
 
     def test_upstreams_responses_2xx(self):
-        status_json = self._read_test_resource_json('resources/status_response.json')
-
         metrics = [MetricDefinition('upstreams.responses.2xx', 'counter', 'responses.2xx')]
-        expected_record_1 = MetricRecord('upstreams.responses.2xx', 'counter', 103711, self.plugin.instance_id,
+        expected_record_1 = MetricRecord('upstreams.responses.2xx', 'counter', 99556, self.plugin.instance_id,
             {'upstream.name' : 'trac-backend', 'upstream.peer.name' : '10.0.0.1:8080'})
         expected_record_2 = MetricRecord('upstreams.responses.2xx', 'counter', 0, self.plugin.instance_id,
             {'upstream.name' : 'trac-backend', 'upstream.peer.name' : '10.0.0.1:8081'})
 
-        expected_record_3 = MetricRecord('upstreams.responses.2xx', 'counter', 408338, self.plugin.instance_id,
+        expected_record_3 = MetricRecord('upstreams.responses.2xx', 'counter', 749277, self.plugin.instance_id,
             {'upstream.name' : 'hg-backend', 'upstream.peer.name' : '10.0.0.1:8088'})
         expected_record_4 = MetricRecord('upstreams.responses.2xx', 'counter', 0, self.plugin.instance_id,
             {'upstream.name' : 'hg-backend', 'upstream.peer.name' : '10.0.0.1:8089'})
 
         expected_records = [expected_record_1, expected_record_2, expected_record_3, expected_record_4]
 
-        self.plugin._emit_upstreams_metrics(status_json, metrics, self.mock_sink)
+        self.plugin._emit_upstreams_metrics(metrics, self.mock_sink)
 
         self.assertEquals(len(expected_records), len(self.mock_sink.captured_records))
         self._verify_records_captured(expected_records)
 
     def test_upstreams_responses_3xx(self):
-        status_json = self._read_test_resource_json('resources/status_response.json')
-
         metrics = [MetricDefinition('upstreams.responses.3xx', 'counter', 'responses.3xx')]
-        expected_record_1 = MetricRecord('upstreams.responses.3xx', 'counter', 538, self.plugin.instance_id,
+        expected_record_1 = MetricRecord('upstreams.responses.3xx', 'counter', 531, self.plugin.instance_id,
             {'upstream.name' : 'trac-backend', 'upstream.peer.name' : '10.0.0.1:8080'})
         expected_record_2 = MetricRecord('upstreams.responses.3xx', 'counter', 0, self.plugin.instance_id,
             {'upstream.name' : 'trac-backend', 'upstream.peer.name' : '10.0.0.1:8081'})
@@ -613,56 +546,50 @@ class NginxCollectdTest(TestCase):
 
         expected_records = [expected_record_1, expected_record_2, expected_record_3, expected_record_4]
 
-        self.plugin._emit_upstreams_metrics(status_json, metrics, self.mock_sink)
+        self.plugin._emit_upstreams_metrics(metrics, self.mock_sink)
 
         self.assertEquals(len(expected_records), len(self.mock_sink.captured_records))
         self._verify_records_captured(expected_records)
 
     def test_upstreams_responses_4xx(self):
-        status_json = self._read_test_resource_json('resources/status_response.json')
-
         metrics = [MetricDefinition('upstreams.responses.4xx', 'counter', 'responses.4xx')]
-        expected_record_1 = MetricRecord('upstreams.responses.4xx', 'counter', 344, self.plugin.instance_id,
+        expected_record_1 = MetricRecord('upstreams.responses.4xx', 'counter', 280, self.plugin.instance_id,
             {'upstream.name' : 'trac-backend', 'upstream.peer.name' : '10.0.0.1:8080'})
         expected_record_2 = MetricRecord('upstreams.responses.4xx', 'counter', 0, self.plugin.instance_id,
             {'upstream.name' : 'trac-backend', 'upstream.peer.name' : '10.0.0.1:8081'})
 
-        expected_record_3 = MetricRecord('upstreams.responses.4xx', 'counter', 5471, self.plugin.instance_id,
+        expected_record_3 = MetricRecord('upstreams.responses.4xx', 'counter', 1408, self.plugin.instance_id,
             {'upstream.name' : 'hg-backend', 'upstream.peer.name' : '10.0.0.1:8088'})
         expected_record_4 = MetricRecord('upstreams.responses.4xx', 'counter', 0, self.plugin.instance_id,
             {'upstream.name' : 'hg-backend', 'upstream.peer.name' : '10.0.0.1:8089'})
 
         expected_records = [expected_record_1, expected_record_2, expected_record_3, expected_record_4]
 
-        self.plugin._emit_upstreams_metrics(status_json, metrics, self.mock_sink)
+        self.plugin._emit_upstreams_metrics(metrics, self.mock_sink)
 
         self.assertEquals(len(expected_records), len(self.mock_sink.captured_records))
         self._verify_records_captured(expected_records)
 
     def test_upstreams_responses_5xx(self):
-        status_json = self._read_test_resource_json('resources/status_response.json')
-
         metrics = [MetricDefinition('upstreams.responses.5xx', 'counter', 'responses.5xx')]
-        expected_record_1 = MetricRecord('upstreams.responses.5xx', 'counter', 23, self.plugin.instance_id,
+        expected_record_1 = MetricRecord('upstreams.responses.5xx', 'counter', 11, self.plugin.instance_id,
             {'upstream.name' : 'trac-backend', 'upstream.peer.name' : '10.0.0.1:8080'})
         expected_record_2 = MetricRecord('upstreams.responses.5xx', 'counter', 0, self.plugin.instance_id,
             {'upstream.name' : 'trac-backend', 'upstream.peer.name' : '10.0.0.1:8081'})
 
-        expected_record_3 = MetricRecord('upstreams.responses.5xx', 'counter', 13, self.plugin.instance_id,
+        expected_record_3 = MetricRecord('upstreams.responses.5xx', 'counter', 29, self.plugin.instance_id,
             {'upstream.name' : 'hg-backend', 'upstream.peer.name' : '10.0.0.1:8088'})
         expected_record_4 = MetricRecord('upstreams.responses.5xx', 'counter', 0, self.plugin.instance_id,
             {'upstream.name' : 'hg-backend', 'upstream.peer.name' : '10.0.0.1:8089'})
 
         expected_records = [expected_record_1, expected_record_2, expected_record_3, expected_record_4]
 
-        self.plugin._emit_upstreams_metrics(status_json, metrics, self.mock_sink)
+        self.plugin._emit_upstreams_metrics(metrics, self.mock_sink)
 
         self.assertEquals(len(expected_records), len(self.mock_sink.captured_records))
         self._verify_records_captured(expected_records)
 
     def test_upstreams_fails(self):
-        status_json = self._read_test_resource_json('resources/status_response.json')
-
         metrics = [MetricDefinition('upstreams.fails', 'counter', 'fails')]
         expected_record_1 = MetricRecord('upstreams.fails', 'counter', 0, self.plugin.instance_id,
             {'upstream.name' : 'trac-backend', 'upstream.peer.name' : '10.0.0.1:8080'})
@@ -676,14 +603,12 @@ class NginxCollectdTest(TestCase):
 
         expected_records = [expected_record_1, expected_record_2, expected_record_3, expected_record_4]
 
-        self.plugin._emit_upstreams_metrics(status_json, metrics, self.mock_sink)
+        self.plugin._emit_upstreams_metrics(metrics, self.mock_sink)
 
         self.assertEquals(len(expected_records), len(self.mock_sink.captured_records))
         self._verify_records_captured(expected_records)
 
     def test_upstreams_unavailable(self):
-        status_json = self._read_test_resource_json('resources/status_response.json')
-
         metrics = [MetricDefinition('upstreams.unavailable', 'counter', 'unavail')]
         expected_record_1 = MetricRecord('upstreams.unavailable', 'counter', 0, self.plugin.instance_id,
             {'upstream.name' : 'trac-backend', 'upstream.peer.name' : '10.0.0.1:8080'})
@@ -697,56 +622,50 @@ class NginxCollectdTest(TestCase):
 
         expected_records = [expected_record_1, expected_record_2, expected_record_3, expected_record_4]
 
-        self.plugin._emit_upstreams_metrics(status_json, metrics, self.mock_sink)
+        self.plugin._emit_upstreams_metrics(metrics, self.mock_sink)
 
         self.assertEquals(len(expected_records), len(self.mock_sink.captured_records))
         self._verify_records_captured(expected_records)
 
     def test_upstreams_health_check_checks(self):
-        status_json = self._read_test_resource_json('resources/status_response.json')
-
         metrics = [MetricDefinition('upstreams.health.checks.checks', 'counter', 'health_checks.checks')]
-        expected_record_1 = MetricRecord('upstreams.health.checks.checks', 'counter', 38254, self.plugin.instance_id,
+        expected_record_1 = MetricRecord('upstreams.health.checks.checks', 'counter', 43992, self.plugin.instance_id,
             {'upstream.name' : 'trac-backend', 'upstream.peer.name' : '10.0.0.1:8080'})
-        expected_record_2 = MetricRecord('upstreams.health.checks.checks', 'counter', 38303, self.plugin.instance_id,
+        expected_record_2 = MetricRecord('upstreams.health.checks.checks', 'counter', 44050, self.plugin.instance_id,
             {'upstream.name' : 'trac-backend', 'upstream.peer.name' : '10.0.0.1:8081'})
 
-        expected_record_3 = MetricRecord('upstreams.health.checks.checks', 'counter', 38199, self.plugin.instance_id,
+        expected_record_3 = MetricRecord('upstreams.health.checks.checks', 'counter', 43926, self.plugin.instance_id,
             {'upstream.name' : 'hg-backend', 'upstream.peer.name' : '10.0.0.1:8088'})
-        expected_record_4 = MetricRecord('upstreams.health.checks.checks', 'counter', 38303, self.plugin.instance_id,
+        expected_record_4 = MetricRecord('upstreams.health.checks.checks', 'counter', 44050, self.plugin.instance_id,
             {'upstream.name' : 'hg-backend', 'upstream.peer.name' : '10.0.0.1:8089'})
 
         expected_records = [expected_record_1, expected_record_2, expected_record_3, expected_record_4]
 
-        self.plugin._emit_upstreams_metrics(status_json, metrics, self.mock_sink)
+        self.plugin._emit_upstreams_metrics(metrics, self.mock_sink)
 
         self.assertEquals(len(expected_records), len(self.mock_sink.captured_records))
         self._verify_records_captured(expected_records)
 
     def test_upstreams_health_check_fails(self):
-        status_json = self._read_test_resource_json('resources/status_response.json')
-
         metrics = [MetricDefinition('upstreams.health.checks.fails', 'counter', 'health_checks.fails')]
         expected_record_1 = MetricRecord('upstreams.health.checks.fails', 'counter', 0, self.plugin.instance_id,
             {'upstream.name' : 'trac-backend', 'upstream.peer.name' : '10.0.0.1:8080'})
-        expected_record_2 = MetricRecord('upstreams.health.checks.fails', 'counter', 38303, self.plugin.instance_id,
+        expected_record_2 = MetricRecord('upstreams.health.checks.fails', 'counter', 44050, self.plugin.instance_id,
             {'upstream.name' : 'trac-backend', 'upstream.peer.name' : '10.0.0.1:8081'})
 
         expected_record_3 = MetricRecord('upstreams.health.checks.fails', 'counter', 0, self.plugin.instance_id,
             {'upstream.name' : 'hg-backend', 'upstream.peer.name' : '10.0.0.1:8088'})
-        expected_record_4 = MetricRecord('upstreams.health.checks.fails', 'counter', 38303, self.plugin.instance_id,
+        expected_record_4 = MetricRecord('upstreams.health.checks.fails', 'counter', 44050, self.plugin.instance_id,
             {'upstream.name' : 'hg-backend', 'upstream.peer.name' : '10.0.0.1:8089'})
 
         expected_records = [expected_record_1, expected_record_2, expected_record_3, expected_record_4]
 
-        self.plugin._emit_upstreams_metrics(status_json, metrics, self.mock_sink)
+        self.plugin._emit_upstreams_metrics(metrics, self.mock_sink)
 
         self.assertEquals(len(expected_records), len(self.mock_sink.captured_records))
         self._verify_records_captured(expected_records)
 
     def test_upstreams_health_check_unhealthy(self):
-        status_json = self._read_test_resource_json('resources/status_response.json')
-
         metrics = [MetricDefinition('upstreams.health.checks.unhealthy', 'counter', 'health_checks.unhealthy')]
         expected_record_1 = MetricRecord('upstreams.health.checks.unhealthy', 'counter', 0, self.plugin.instance_id,
             {'upstream.name' : 'trac-backend', 'upstream.peer.name' : '10.0.0.1:8080'})
@@ -760,78 +679,66 @@ class NginxCollectdTest(TestCase):
 
         expected_records = [expected_record_1, expected_record_2, expected_record_3, expected_record_4]
 
-        self.plugin._emit_upstreams_metrics(status_json, metrics, self.mock_sink)
+        self.plugin._emit_upstreams_metrics(metrics, self.mock_sink)
 
         self.assertEquals(len(expected_records), len(self.mock_sink.captured_records))
         self._verify_records_captured(expected_records)
 
     def test_cache_size(self):
-        status_json = self._read_test_resource_json('resources/status_response.json')
-
         metrics = [MetricDefinition('caches.size', 'counter', 'size')]
-        expected_record = MetricRecord('caches.size', 'counter', 532680704, self.plugin.instance_id,
+        expected_record = MetricRecord('caches.size', 'counter', 537636864, self.plugin.instance_id,
             {'cache.name' : 'http_cache'})
 
-        self.plugin._emit_cache_metrics(status_json, metrics, self.mock_sink)
+        self.plugin._emit_cache_metrics(metrics, self.mock_sink)
 
         self.assertEquals(1, len(self.mock_sink.captured_records))
         self._validate_single_record(expected_record, self.mock_sink.captured_records[0])
 
     def test_cache_size_max(self):
-        status_json = self._read_test_resource_json('resources/status_response.json')
-
         metrics = [MetricDefinition('caches.size.max', 'counter', 'max_size')]
         expected_record = MetricRecord('caches.size.max', 'counter', 536870912, self.plugin.instance_id,
             {'cache.name' : 'http_cache'})
 
-        self.plugin._emit_cache_metrics(status_json, metrics, self.mock_sink)
+        self.plugin._emit_cache_metrics(metrics, self.mock_sink)
 
         self.assertEquals(1, len(self.mock_sink.captured_records))
         self._validate_single_record(expected_record, self.mock_sink.captured_records[0])
 
     def test_cache_hits(self):
-        status_json = self._read_test_resource_json('resources/status_response.json')
-
         metrics = [MetricDefinition('caches.hits', 'counter', 'hit.responses')]
-        expected_record = MetricRecord('caches.hits', 'counter', 921734, self.plugin.instance_id,
+        expected_record = MetricRecord('caches.hits', 'counter', 1154249, self.plugin.instance_id,
             {'cache.name' : 'http_cache'})
 
-        self.plugin._emit_cache_metrics(status_json, metrics, self.mock_sink)
+        self.plugin._emit_cache_metrics(metrics, self.mock_sink)
 
         self.assertEquals(1, len(self.mock_sink.captured_records))
         self._validate_single_record(expected_record, self.mock_sink.captured_records[0])
 
     def test_cache_misses(self):
-        status_json = self._read_test_resource_json('resources/status_response.json')
-
         metrics = [MetricDefinition('caches.misses', 'counter', 'miss.responses')]
-        expected_record = MetricRecord('caches.misses', 'counter', 3396487, self.plugin.instance_id,
+        expected_record = MetricRecord('caches.misses', 'counter', 4404051, self.plugin.instance_id,
             {'cache.name' : 'http_cache'})
 
-        self.plugin._emit_cache_metrics(status_json, metrics, self.mock_sink)
+        self.plugin._emit_cache_metrics(metrics, self.mock_sink)
 
         self.assertEquals(1, len(self.mock_sink.captured_records))
         self._validate_single_record(expected_record, self.mock_sink.captured_records[0])
 
     def test_stream_server_zone_connections(self):
-        status_json = self._read_test_resource_json('resources/status_response.json')
-
         metrics = [MetricDefinition('stream.server.zone.connections', 'counter', 'connections')]
-        expected_record_1 = MetricRecord('stream.server.zone.connections', 'counter', 382002, self.plugin.instance_id,
+        expected_record_1 = MetricRecord('stream.server.zone.connections', 'counter', 439412, self.plugin.instance_id,
             {'stream.server.zone.name' : 'postgresql_loadbalancer'})
-        expected_record_2 = MetricRecord('stream.server.zone.connections', 'counter', 219222, self.plugin.instance_id,
+        expected_record_2 = MetricRecord('stream.server.zone.connections', 'counter', 252193, self.plugin.instance_id,
             {'stream.server.zone.name' : 'dns_loadbalancer'})
 
         expected_records = [expected_record_1, expected_record_2]
 
-        self.plugin._emit_stream_server_zone_metrics(status_json, metrics, self.mock_sink)
+        self.plugin._emit_stream_server_zone_metrics(metrics, self.mock_sink)
 
         self.assertEquals(len(expected_records), len(self.mock_sink.captured_records))
         self._verify_records_captured(expected_records)
 
     def test_stream_server_zone_processing(self):
-        status_json = self._read_test_resource_json('resources/status_response.json')
-
         metrics = [MetricDefinition('stream.server.zone.processing', 'counter', 'processing')]
         expected_record_1 = MetricRecord('stream.server.zone.processing', 'counter', 0, self.plugin.instance_id,
             {'stream.server.zone.name' : 'postgresql_loadbalancer'})
@@ -840,30 +747,26 @@ class NginxCollectdTest(TestCase):
 
         expected_records = [expected_record_1, expected_record_2]
 
-        self.plugin._emit_stream_server_zone_metrics(status_json, metrics, self.mock_sink)
+        self.plugin._emit_stream_server_zone_metrics(metrics, self.mock_sink)
 
         self.assertEquals(len(expected_records), len(self.mock_sink.captured_records))
         self._verify_records_captured(expected_records)
 
     def test_stream_server_zone_session_2xx(self):
-        status_json = self._read_test_resource_json('resources/status_response.json')
-
         metrics = [MetricDefinition('stream.server.zone.session.2xx', 'counter', 'sessions.2xx')]
-        expected_record_1 = MetricRecord('stream.server.zone.session.2xx', 'counter', 382002, self.plugin.instance_id,
+        expected_record_1 = MetricRecord('stream.server.zone.session.2xx', 'counter', 439412, self.plugin.instance_id,
             {'stream.server.zone.name' : 'postgresql_loadbalancer'})
-        expected_record_2 = MetricRecord('stream.server.zone.session.2xx', 'counter', 219222, self.plugin.instance_id,
+        expected_record_2 = MetricRecord('stream.server.zone.session.2xx', 'counter', 252184, self.plugin.instance_id,
             {'stream.server.zone.name' : 'dns_loadbalancer'})
 
         expected_records = [expected_record_1, expected_record_2]
 
-        self.plugin._emit_stream_server_zone_metrics(status_json, metrics, self.mock_sink)
+        self.plugin._emit_stream_server_zone_metrics(metrics, self.mock_sink)
 
         self.assertEquals(len(expected_records), len(self.mock_sink.captured_records))
         self._verify_records_captured(expected_records)
 
     def test_stream_server_zone_session_4xx(self):
-        status_json = self._read_test_resource_json('resources/status_response.json')
-
         metrics = [MetricDefinition('stream.server.zone.session.4xx', 'counter', 'sessions.4xx')]
         expected_record_1 = MetricRecord('stream.server.zone.session.4xx', 'counter', 0, self.plugin.instance_id,
             {'stream.server.zone.name' : 'postgresql_loadbalancer'})
@@ -872,51 +775,45 @@ class NginxCollectdTest(TestCase):
 
         expected_records = [expected_record_1, expected_record_2]
 
-        self.plugin._emit_stream_server_zone_metrics(status_json, metrics, self.mock_sink)
+        self.plugin._emit_stream_server_zone_metrics(metrics, self.mock_sink)
 
         self.assertEquals(len(expected_records), len(self.mock_sink.captured_records))
         self._verify_records_captured(expected_records)
 
     def test_stream_server_zone_session_5xx(self):
-        status_json = self._read_test_resource_json('resources/status_response.json')
-
         metrics = [MetricDefinition('stream.server.zone.session.5xx', 'counter', 'sessions.5xx')]
         expected_record_1 = MetricRecord('stream.server.zone.session.5xx', 'counter', 0, self.plugin.instance_id,
             {'stream.server.zone.name' : 'postgresql_loadbalancer'})
-        expected_record_2 = MetricRecord('stream.server.zone.session.5xx', 'counter', 0, self.plugin.instance_id,
+        expected_record_2 = MetricRecord('stream.server.zone.session.5xx', 'counter', 9, self.plugin.instance_id,
             {'stream.server.zone.name' : 'dns_loadbalancer'})
 
         expected_records = [expected_record_1, expected_record_2]
 
-        self.plugin._emit_stream_server_zone_metrics(status_json, metrics, self.mock_sink)
+        self.plugin._emit_stream_server_zone_metrics(metrics, self.mock_sink)
 
         self.assertEquals(len(expected_records), len(self.mock_sink.captured_records))
         self._verify_records_captured(expected_records)
 
     def test_stream_upstream_connections(self):
-        status_json = self._read_test_resource_json('resources/status_response.json')
-
         metrics = [MetricDefinition('stream.upstreams.connections', 'counter', 'connections')]
-        expected_record_1 = MetricRecord('stream.upstreams.connections', 'counter', 1, self.plugin.instance_id,
+        expected_record_1 = MetricRecord('stream.upstreams.connections', 'counter', 146429, self.plugin.instance_id,
             {'stream.upstream.name' : 'postgresql_backends', 'stream.upstream.peer.name' : '10.0.0.2:15432'})
-        expected_record_2 = MetricRecord('stream.upstreams.connections', 'counter', 191001, self.plugin.instance_id,
+        expected_record_2 = MetricRecord('stream.upstreams.connections', 'counter', 146429, self.plugin.instance_id,
             {'stream.upstream.name' : 'postgresql_backends', 'stream.upstream.peer.name' : '10.0.0.2:15433'})
 
-        expected_record_3 = MetricRecord('stream.upstreams.connections', 'counter', 146148, self.plugin.instance_id,
+        expected_record_3 = MetricRecord('stream.upstreams.connections', 'counter', 168076, self.plugin.instance_id,
             {'stream.upstream.name' : 'dns_udp_backends', 'stream.upstream.peer.name' : '10.0.0.5:53'})
-        expected_record_4 = MetricRecord('stream.upstreams.connections', 'counter', 73074, self.plugin.instance_id,
+        expected_record_4 = MetricRecord('stream.upstreams.connections', 'counter', 84036, self.plugin.instance_id,
             {'stream.upstream.name' : 'dns_udp_backends', 'stream.upstream.peer.name' : '10.0.0.2:53'})
 
         expected_records = [expected_record_1, expected_record_2, expected_record_3, expected_record_4]
 
-        self.plugin._emit_stream_upstreams_metrics(status_json, metrics, self.mock_sink)
+        self.plugin._emit_stream_upstreams_metrics(metrics, self.mock_sink)
 
         self.assertEquals(len(expected_records), len(self.mock_sink.captured_records))
         self._verify_records_captured(expected_records)
 
     def test_stream_upstream_active(self):
-        status_json = self._read_test_resource_json('resources/status_response.json')
-
         metrics = [MetricDefinition('stream.upstreams.active', 'counter', 'active')]
         expected_record_1 = MetricRecord('stream.upstreams.active', 'counter', 0, self.plugin.instance_id,
             {'stream.upstream.name' : 'postgresql_backends', 'stream.upstream.peer.name' : '10.0.0.2:15432'})
@@ -930,71 +827,63 @@ class NginxCollectdTest(TestCase):
 
         expected_records = [expected_record_1, expected_record_2, expected_record_3, expected_record_4]
 
-        self.plugin._emit_stream_upstreams_metrics(status_json, metrics, self.mock_sink)
+        self.plugin._emit_stream_upstreams_metrics(metrics, self.mock_sink)
 
         self.assertEquals(len(expected_records), len(self.mock_sink.captured_records))
         self._verify_records_captured(expected_records)
 
     def test_stream_upstream_connections_max(self):
-        status_json = self._read_test_resource_json('resources/status_response.json')
-
         metrics = [MetricDefinition('stream.upstreams.connections.max', 'counter', 'max_conns')]
         expected_record_1 = MetricRecord('stream.upstreams.connections.max', 'counter', 42, self.plugin.instance_id,
             {'stream.upstream.name' : 'postgresql_backends', 'stream.upstream.peer.name' : '10.0.0.2:15432'})
 
         expected_records = [expected_record_1]
 
-        self.plugin._emit_stream_upstreams_metrics(status_json, metrics, self.mock_sink)
+        self.plugin._emit_stream_upstreams_metrics(metrics, self.mock_sink)
 
         self.assertEquals(len(expected_records), len(self.mock_sink.captured_records))
         self._verify_records_captured(expected_records)
 
     def test_stream_upstream_bytes_sent(self):
-        status_json = self._read_test_resource_json('resources/status_response.json')
-
         metrics = [MetricDefinition('stream.upstreams.bytes.sent', 'counter', 'sent')]
-        expected_record_1 = MetricRecord('stream.upstreams.bytes.sent', 'counter', 107, self.plugin.instance_id,
+        expected_record_1 = MetricRecord('stream.upstreams.bytes.sent', 'counter', 15667903, self.plugin.instance_id,
             {'stream.upstream.name' : 'postgresql_backends', 'stream.upstream.peer.name' : '10.0.0.2:15432'})
-        expected_record_2 = MetricRecord('stream.upstreams.bytes.sent', 'counter', 20437107, self.plugin.instance_id,
+        expected_record_2 = MetricRecord('stream.upstreams.bytes.sent', 'counter', 15667903, self.plugin.instance_id,
             {'stream.upstream.name' : 'postgresql_backends', 'stream.upstream.peer.name' : '10.0.0.2:15433'})
 
-        expected_record_3 = MetricRecord('stream.upstreams.bytes.sent', 'counter', 3945996, self.plugin.instance_id,
+        expected_record_3 = MetricRecord('stream.upstreams.bytes.sent', 'counter', 4538052, self.plugin.instance_id,
             {'stream.upstream.name' : 'dns_udp_backends', 'stream.upstream.peer.name' : '10.0.0.5:53'})
-        expected_record_4 = MetricRecord('stream.upstreams.bytes.sent', 'counter', 1972998, self.plugin.instance_id,
+        expected_record_4 = MetricRecord('stream.upstreams.bytes.sent', 'counter', 2268972, self.plugin.instance_id,
             {'stream.upstream.name' : 'dns_udp_backends', 'stream.upstream.peer.name' : '10.0.0.2:53'})
 
         expected_records = [expected_record_1, expected_record_2, expected_record_3, expected_record_4]
 
-        self.plugin._emit_stream_upstreams_metrics(status_json, metrics, self.mock_sink)
+        self.plugin._emit_stream_upstreams_metrics(metrics, self.mock_sink)
 
         self.assertEquals(len(expected_records), len(self.mock_sink.captured_records))
         self._verify_records_captured(expected_records)
 
     def test_stream_upstream_bytes_received(self):
         instance_id = self.plugin.instance_id
-        status_json = self._read_test_resource_json('resources/status_response.json')
-
         metrics = [MetricDefinition('stream.upstreams.bytes.received', 'counter', 'received')]
-        expected_record_1 = MetricRecord('stream.upstreams.bytes.received', 'counter', 13634, instance_id,
+        expected_record_1 = MetricRecord('stream.upstreams.bytes.received', 'counter', 2105701601, instance_id,
             {'stream.upstream.name' : 'postgresql_backends', 'stream.upstream.peer.name' : '10.0.0.2:15432'})
-        expected_record_2 = MetricRecord('stream.upstreams.bytes.received', 'counter', 2743118929, instance_id,
+        expected_record_2 = MetricRecord('stream.upstreams.bytes.received', 'counter', 2105701100, instance_id,
             {'stream.upstream.name' : 'postgresql_backends', 'stream.upstream.peer.name' : '10.0.0.2:15433'})
 
-        expected_record_3 = MetricRecord('stream.upstreams.bytes.received', 'counter', 19249800, instance_id,
+        expected_record_3 = MetricRecord('stream.upstreams.bytes.received', 'counter', 22136800, instance_id,
             {'stream.upstream.name' : 'dns_udp_backends', 'stream.upstream.peer.name' : '10.0.0.5:53'})
-        expected_record_4 = MetricRecord('stream.upstreams.bytes.received', 'counter', 9624780, instance_id,
+        expected_record_4 = MetricRecord('stream.upstreams.bytes.received', 'counter', 11068164, instance_id,
             {'stream.upstream.name' : 'dns_udp_backends', 'stream.upstream.peer.name' : '10.0.0.2:53'})
 
         expected_records = [expected_record_1, expected_record_2, expected_record_3, expected_record_4]
 
-        self.plugin._emit_stream_upstreams_metrics(status_json, metrics, self.mock_sink)
+        self.plugin._emit_stream_upstreams_metrics(metrics, self.mock_sink)
 
         self.assertEquals(len(expected_records), len(self.mock_sink.captured_records))
         self._verify_records_captured(expected_records)
 
     def test_stream_upstream_fails(self):
-        status_json = self._read_test_resource_json('resources/status_response.json')
-
         metrics = [MetricDefinition('stream.upstreams.fails', 'counter', 'fails')]
         expected_record_1 = MetricRecord('stream.upstreams.fails', 'counter', 0, self.plugin.instance_id,
             {'stream.upstream.name' : 'postgresql_backends', 'stream.upstream.peer.name' : '10.0.0.2:15432'})
@@ -1008,14 +897,12 @@ class NginxCollectdTest(TestCase):
 
         expected_records = [expected_record_1, expected_record_2, expected_record_3, expected_record_4]
 
-        self.plugin._emit_stream_upstreams_metrics(status_json, metrics, self.mock_sink)
+        self.plugin._emit_stream_upstreams_metrics(metrics, self.mock_sink)
 
         self.assertEquals(len(expected_records), len(self.mock_sink.captured_records))
         self._verify_records_captured(expected_records)
 
     def test_stream_upstream_unavailable(self):
-        status_json = self._read_test_resource_json('resources/status_response.json')
-
         metrics = [MetricDefinition('stream.upstreams.unavailable', 'counter', 'unavail')]
         expected_record_1 = MetricRecord('stream.upstreams.unavailable', 'counter', 0, self.plugin.instance_id,
             {'stream.upstream.name' : 'postgresql_backends', 'stream.upstream.peer.name' : '10.0.0.2:15432'})
@@ -1029,72 +916,66 @@ class NginxCollectdTest(TestCase):
 
         expected_records = [expected_record_1, expected_record_2, expected_record_3, expected_record_4]
 
-        self.plugin._emit_stream_upstreams_metrics(status_json, metrics, self.mock_sink)
+        self.plugin._emit_stream_upstreams_metrics(metrics, self.mock_sink)
 
         self.assertEquals(len(expected_records), len(self.mock_sink.captured_records))
         self._verify_records_captured(expected_records)
 
     def test_stream_upstream_health_check_checks(self):
         instance_id = self.plugin.instance_id
-        status_json = self._read_test_resource_json('resources/status_response.json')
-
         metrics = [MetricDefinition('stream.upstreams.health.checks.checks', 'counter', 'health_checks.checks')]
-        expected_record_1 = MetricRecord('stream.upstreams.health.checks.checks', 'counter', 76582, instance_id,
+        expected_record_1 = MetricRecord('stream.upstreams.health.checks.checks', 'counter', 88078, instance_id,
             {'stream.upstream.name' : 'postgresql_backends', 'stream.upstream.peer.name' : '10.0.0.2:15432'})
-        expected_record_2 = MetricRecord('stream.upstreams.health.checks.checks', 'counter', 76582, instance_id,
+        expected_record_2 = MetricRecord('stream.upstreams.health.checks.checks', 'counter', 88078, instance_id,
             {'stream.upstream.name' : 'postgresql_backends', 'stream.upstream.peer.name' : '10.0.0.2:15433'})
 
-        expected_record_3 = MetricRecord('stream.upstreams.health.checks.checks', 'counter', 76552, instance_id,
+        expected_record_3 = MetricRecord('stream.upstreams.health.checks.checks', 'counter', 88041, instance_id,
             {'stream.upstream.name' : 'dns_udp_backends', 'stream.upstream.peer.name' : '10.0.0.5:53'})
-        expected_record_4 = MetricRecord('stream.upstreams.health.checks.checks', 'counter', 76552, instance_id,
+        expected_record_4 = MetricRecord('stream.upstreams.health.checks.checks', 'counter', 88039, instance_id,
             {'stream.upstream.name' : 'dns_udp_backends', 'stream.upstream.peer.name' : '10.0.0.2:53'})
 
         expected_records = [expected_record_1, expected_record_2, expected_record_3, expected_record_4]
 
-        self.plugin._emit_stream_upstreams_metrics(status_json, metrics, self.mock_sink)
+        self.plugin._emit_stream_upstreams_metrics(metrics, self.mock_sink)
 
         self.assertEquals(len(expected_records), len(self.mock_sink.captured_records))
         self._verify_records_captured(expected_records)
 
     def test_stream_upstream_health_check_fails(self):
-        status_json = self._read_test_resource_json('resources/status_response.json')
-
         metrics = [MetricDefinition('stream.upstreams.health.checks.fails', 'counter', 'health_checks.fails')]
         expected_record_1 = MetricRecord('stream.upstreams.health.checks.fails', 'counter', 0, self.plugin.instance_id,
             {'stream.upstream.name' : 'postgresql_backends', 'stream.upstream.peer.name' : '10.0.0.2:15432'})
         expected_record_2 = MetricRecord('stream.upstreams.health.checks.fails', 'counter', 0, self.plugin.instance_id,
             {'stream.upstream.name' : 'postgresql_backends', 'stream.upstream.peer.name' : '10.0.0.2:15433'})
 
-        expected_record_3 = MetricRecord('stream.upstreams.health.checks.fails', 'counter', 0, self.plugin.instance_id,
+        expected_record_3 = MetricRecord('stream.upstreams.health.checks.fails', 'counter', 3, self.plugin.instance_id,
             {'stream.upstream.name' : 'dns_udp_backends', 'stream.upstream.peer.name' : '10.0.0.5:53'})
-        expected_record_4 = MetricRecord('stream.upstreams.health.checks.fails', 'counter', 0, self.plugin.instance_id,
+        expected_record_4 = MetricRecord('stream.upstreams.health.checks.fails', 'counter', 5, self.plugin.instance_id,
             {'stream.upstream.name' : 'dns_udp_backends', 'stream.upstream.peer.name' : '10.0.0.2:53'})
 
         expected_records = [expected_record_1, expected_record_2, expected_record_3, expected_record_4]
 
-        self.plugin._emit_stream_upstreams_metrics(status_json, metrics, self.mock_sink)
+        self.plugin._emit_stream_upstreams_metrics(metrics, self.mock_sink)
 
         self.assertEquals(len(expected_records), len(self.mock_sink.captured_records))
         self._verify_records_captured(expected_records)
 
     def test_stream_upstream_health_check_unhealthy(self):
         instance_id = self.plugin.instance_id
-        status_json = self._read_test_resource_json('resources/status_response.json')
-
         metrics = [MetricDefinition('stream.upstreams.health.checks.unhealthy', 'counter', 'health_checks.unhealthy')]
         expected_record_1 = MetricRecord('stream.upstreams.health.checks.unhealthy', 'counter', 0, instance_id,
             {'stream.upstream.name' : 'postgresql_backends', 'stream.upstream.peer.name' : '10.0.0.2:15432'})
         expected_record_2 = MetricRecord('stream.upstreams.health.checks.unhealthy', 'counter', 0, instance_id,
             {'stream.upstream.name' : 'postgresql_backends', 'stream.upstream.peer.name' : '10.0.0.2:15433'})
 
-        expected_record_3 = MetricRecord('stream.upstreams.health.checks.unhealthy', 'counter', 0, instance_id,
+        expected_record_3 = MetricRecord('stream.upstreams.health.checks.unhealthy', 'counter', 2, instance_id,
             {'stream.upstream.name' : 'dns_udp_backends', 'stream.upstream.peer.name' : '10.0.0.5:53'})
-        expected_record_4 = MetricRecord('stream.upstreams.health.checks.unhealthy', 'counter', 0, instance_id,
+        expected_record_4 = MetricRecord('stream.upstreams.health.checks.unhealthy', 'counter', 2, instance_id,
             {'stream.upstream.name' : 'dns_udp_backends', 'stream.upstream.peer.name' : '10.0.0.2:53'})
 
         expected_records = [expected_record_1, expected_record_2, expected_record_3, expected_record_4]
 
-        self.plugin._emit_stream_upstreams_metrics(status_json, metrics, self.mock_sink)
+        self.plugin._emit_stream_upstreams_metrics(metrics, self.mock_sink)
 
         self.assertEquals(len(expected_records), len(self.mock_sink.captured_records))
         self._verify_records_captured(expected_records)
@@ -1113,6 +994,8 @@ class NginxCollectdTest(TestCase):
 
     def _get_default_metric_names(self):
         metric_names = self._extract_metric_names_from_definitions(DEFAULT_CONNECTION_METRICS)
+        metric_names.extend(self._extract_metric_names_from_definitions(DEFAULT_SSL_METRICS))
+        metric_names.extend(self._extract_metric_names_from_definitions(DEFAULT_REQUESTS_METRICS))
         metric_names.extend(self._extract_metric_names_from_definitions(DEFAULT_SERVER_ZONE_METRICS))
         metric_names.extend(self._extract_metric_names_from_definitions(DEFAULT_UPSTREAM_METRICS))
         metric_names.extend(self._extract_metric_names_from_definitions(DEFAULT_STREAM_SERVER_ZONE_METRICS))
@@ -1130,6 +1013,36 @@ class NginxCollectdTest(TestCase):
         abs_path = os.path.join(os.path.dirname(__file__), relative_path)
         with open(abs_path) as json_file:
             return json.load(json_file)
+
+    def _build_mock_nginx_agent(self):
+        mock_nginx_agent = Mock()
+
+        status_json = self._read_test_resource_json('resources/status_response.json')
+        status_caches_json = self._read_test_resource_json('resources/status_caches.json')
+        status_server_zones_json = self._read_test_resource_json('resources/status_server_zones.json')
+        status_upstreams_json = self._read_test_resource_json('resources/status_upstreams.json')
+        status_stream_upstreams_json = self._read_test_resource_json('resources/status_stream_upstreams.json')
+        status_stream_server_zones_json = self._read_test_resource_json('resources/status_stream_server_zones.json')
+        status_connections_json = self._read_test_resource_json('resources/status_connections.json')
+        status_requests_json = self._read_test_resource_json('resources/status_requests.json')
+        status_ssl_json = self._read_test_resource_json('resources/status_ssl.json')
+        status_slabs_json = self._read_test_resource_json('resources/status_slabs.json')
+
+        mock_nginx_agent.get_status = MagicMock(return_value=status_json)
+        mock_nginx_agent.get_caches = MagicMock(return_value=status_caches_json)
+        mock_nginx_agent.get_server_zones = MagicMock(return_value=status_server_zones_json)
+        mock_nginx_agent.get_upstreams = MagicMock(return_value=status_upstreams_json)
+        mock_nginx_agent.get_stream_upstreams = MagicMock(return_value=status_stream_upstreams_json)
+        mock_nginx_agent.get_stream_server_zones = MagicMock(return_value=status_stream_server_zones_json)
+        mock_nginx_agent.get_connections = MagicMock(return_value=status_connections_json)
+        mock_nginx_agent.get_requests = MagicMock(return_value=status_requests_json)
+        mock_nginx_agent.get_ssl = MagicMock(return_value=status_ssl_json)
+        mock_nginx_agent.get_slabs = MagicMock(return_value=status_slabs_json)
+
+        mock_nginx_agent.get_nginx_version = MagicMock(return_value='1.11.10')
+        mock_nginx_agent.get_nginx_address = MagicMock(return_value='206.251.255.64')
+
+        return mock_nginx_agent
 
     def _validate_single_record(self, expected_record, actual_record):
         self.assertIsNotNone(actual_record)

@@ -28,7 +28,6 @@ class MetricEmitter:
     Constructor Arguements:
         emit_func: The function used to build and emit metrics from the NGINX+
                     status JSON. The function is expected to accept the arguements:
-                        * The NGINX+ status JSON
                         * A list of MetricDefinitions
                         * An instance of MetricSink
 
@@ -38,12 +37,11 @@ class MetricEmitter:
         self.emit_func = emit_func
         self.metrics = metrics
 
-    def emit(self, status_json, sink):
+    def emit(self, sink):
         '''
-        Build and emit metrics with the encapsulated function and metric definitions
-        along with the given status JSON and sink.
+        Build and emit metrics with the encapsulated function and metric definitions.
         '''
-        self.emit_func(status_json, self.metrics, sink)
+        self.emit_func(self.metrics, sink)
 
 class MetricRecord:
     '''
@@ -105,13 +103,19 @@ STREAM_UPSTREAM = 'StreamUpstream'
 
 # Metric groups
 DEFAULT_CONNECTION_METRICS = [
-    MetricDefinition('connections.accepted', 'counter', 'connections.accepted'),
-    MetricDefinition('connections.dropped', 'counter', 'connections.dropped'),
-    MetricDefinition('connections.idle', 'counter', 'connections.idle'),
-    MetricDefinition('ssl.handshakes.successful', 'counter', 'ssl.handshakes.handshakes'),
-    MetricDefinition('ssl.handshakes.failed', 'counter', 'ssl.handshakes.handshakes_failed'),
-    MetricDefinition('requests.total', 'counter', 'requests.total'),
-    MetricDefinition('requests.current', 'counter', 'requests.current'),
+    MetricDefinition('connections.accepted', 'counter', 'accepted'),
+    MetricDefinition('connections.dropped', 'counter', 'dropped'),
+    MetricDefinition('connections.idle', 'counter', 'idle')
+]
+
+DEFAULT_SSL_METRICS = [
+    MetricDefinition('ssl.handshakes.successful', 'counter', 'handshakes.handshakes'),
+    MetricDefinition('ssl.handshakes.failed', 'counter', 'handshakes.handshakes_failed')
+]
+
+DEFAULT_REQUESTS_METRICS = [
+    MetricDefinition('requests.total', 'counter', 'total'),
+    MetricDefinition('requests.current', 'counter', 'current')
 ]
 
 DEFAULT_SERVER_ZONE_METRICS = [
@@ -206,9 +210,7 @@ class NginxPlusPlugin:
     @property
     def instance_id(self):
         if not self._instance_id:
-            status_json = self.nginx_agent.get_status()
-            if status_json:
-                self._instance_id = _reduce_to_path(status_json, 'address')
+            self._instance_id = self.nginx_agent.get_nginx_address()
         return self._instance_id
 
     def config_callback(self, conf):
@@ -247,7 +249,9 @@ class NginxPlusPlugin:
                 self.emitters.append(MetricEmitter(self._emit_stream_server_zone_metrics, STREAM_SERVER_ZONE_METRICS))
 
         # Default metric emitters
-        self.emitters.append(MetricEmitter(self._emit_top_level_metrics, DEFAULT_CONNECTION_METRICS))
+        self.emitters.append(MetricEmitter(self._emit_connection_metrics, DEFAULT_CONNECTION_METRICS))
+        self.emitters.append(MetricEmitter(self._emit_ssl_metrics, DEFAULT_SSL_METRICS))
+        self.emitters.append(MetricEmitter(self._emit_requests_metrics, DEFAULT_REQUESTS_METRICS))
         self.emitters.append(MetricEmitter(self._emit_server_zone_metrics, DEFAULT_SERVER_ZONE_METRICS))
         self.emitters.append(MetricEmitter(self._emit_upstreams_metrics, DEFAULT_UPSTREAM_METRICS))
         self.emitters.append(MetricEmitter(self._emit_stream_server_zone_metrics, DEFAULT_STREAM_SERVER_ZONE_METRICS))
@@ -271,76 +275,98 @@ class NginxPlusPlugin:
             LOGGER.warning('Skipping read, instance id is not set')
             return
 
-        status_json = self.nginx_agent.get_status()
-        if not status_json:
-            LOGGER.warning('Skipping read, failed to retrieve status JSON')
-            return
-
         for emitter in self.emitters:
-            emitter.emit(status_json, self.sink)
+            emitter.emit(self.sink)
 
-    def _emit_top_level_metrics(self, status_json, metrics, sink):
+    def _emit_connection_metrics(self, metrics, sink):
         '''
-        Extract and emit the top-level metrics from the status JSON.
+        Extract and emit the connection metrics.
         '''
-        LOGGER.debug('Emitting top-level metrics')
+        LOGGER.debug('Emitting connection metrics')
 
-        dimensions = {'nginx.version' : _reduce_to_path(status_json, 'nginx_version')}
+        nginx_version = self.nginx_agent.get_nginx_version()
+        status_json = self.nginx_agent.get_connections()
+
+        dimensions = {'nginx.version' : nginx_version}
         self._fetch_and_emit_metrics(status_json, metrics, dimensions, sink)
 
-    def _emit_server_zone_metrics(self, status_json, metrics, sink):
+    def _emit_ssl_metrics(self, metrics, sink):
         '''
-        Extract and emit the server-zone metrics from the status JSON.
+        Extract and emit the ssl metrics.
+        '''
+        LOGGER.debug('Emitting ssl metrics')
+
+        nginx_version = self.nginx_agent.get_nginx_version()
+        status_json = self.nginx_agent.get_ssl()
+
+        dimensions = {'nginx.version' : nginx_version}
+        self._fetch_and_emit_metrics(status_json, metrics, dimensions, sink)
+
+    def _emit_requests_metrics(self, metrics, sink):
+        '''
+        Extract and emit the requests metrics.
+        '''
+        LOGGER.debug('Emitting requests metrics')
+
+        nginx_version = self.nginx_agent.get_nginx_version()
+        status_json = self.nginx_agent.get_requests()
+
+        dimensions = {'nginx.version' : nginx_version}
+        self._fetch_and_emit_metrics(status_json, metrics, dimensions, sink)
+
+    def _emit_server_zone_metrics(self, metrics, sink):
+        '''
+        Extract and emit the server-zone metrics.
         '''
         LOGGER.debug('Emitting server-zone metrics')
 
-        server_zones_obj = _reduce_to_path(status_json, 'server_zones')
+        server_zones_obj = self.nginx_agent.get_server_zones()
         self._build_container_keyed_metrics(server_zones_obj, 'server.zone.name', metrics, sink)
 
-    def _emit_upstreams_metrics(self, status_json, metrics, sink):
+    def _emit_upstreams_metrics(self, metrics, sink):
         '''
-        Extract and emit the upstreams metrics from the status JSON.
+        Extract and emit the upstreams metrics.
         '''
         LOGGER.debug('Emitting upstreams metrics')
 
-        upstreams_obj = _reduce_to_path(status_json, 'upstreams')
+        upstreams_obj = self.nginx_agent.get_upstreams()
         self._build_container_keyed_peer_metrics(upstreams_obj, 'upstream.name', 'upstream.peer.name', metrics, sink)
 
-    def _emit_stream_server_zone_metrics(self, status_json, metrics, sink):
+    def _emit_stream_server_zone_metrics(self, metrics, sink):
         '''
-        Extract and emit the stream-server-zone metrics from the status JSON.
+        Extract and emit the stream-server-zone metrics.
         '''
         LOGGER.debug('Emitting stream-server-zone metrics')
 
-        server_zones_obj = _reduce_to_path(status_json, 'stream.server_zones')
+        server_zones_obj = self.nginx_agent.get_stream_server_zones()
         self._build_container_keyed_metrics(server_zones_obj, 'stream.server.zone.name', metrics, sink)
 
-    def _emit_stream_upstreams_metrics(self, status_json, metrics, sink):
+    def _emit_stream_upstreams_metrics(self, metrics, sink):
         '''
-        Extract and emit the stream-upstream metrics from the status JSON.
+        Extract and emit the stream-upstream metrics.
         '''
         LOGGER.debug('Emitting stream-upstreams metrics')
 
-        upstreams_obj = _reduce_to_path(status_json, 'stream.upstreams')
+        upstreams_obj = self.nginx_agent.get_stream_upstreams()
         self._build_container_keyed_peer_metrics(upstreams_obj, 'stream.upstream.name', 'stream.upstream.peer.name',\
             metrics, sink)
 
-    def _emit_memory_zone_metrics(self, status_json, metrics, sink):
+    def _emit_memory_zone_metrics(self, metrics, sink):
         '''
-        Extract and emit the memory zone metrics from the status JSON.
+        Extract and emit the memory zone metrics.
         '''
         LOGGER.debug('Emitting memory-zone metrics')
 
-        slab_obj = _reduce_to_path(status_json, 'slabs')
+        slab_obj = self.nginx_agent.get_slabs()
         self._build_container_keyed_metrics(slab_obj, 'memory.zone.name', metrics, sink)
 
-    def _emit_cache_metrics(self, status_json, metrics, sink):
+    def _emit_cache_metrics(self, metrics, sink):
         '''
-        Extract and emit the cache metrics from the status JSON.
+        Extract and emit the cache metrics.
         '''
         LOGGER.debug('Emitting cache metrics')
 
-        cache_obj = _reduce_to_path(status_json, 'caches')
+        cache_obj = self.nginx_agent.get_caches()
         self._build_container_keyed_metrics(cache_obj, 'cache.name', metrics, sink)
 
     def _build_container_keyed_metrics(self, containers_obj, container_dim_name, metrics, sink):
@@ -497,22 +523,68 @@ class NginxStatusAgent:
         self.status_host = status_host or 'localhost'
         self.status_port = status_port or 8080
 
-        self.status_url = 'http://{}:{}/status'.format(self.status_host, str(self.status_port))
+        self.base_status_url = 'http://{}:{}/status'.format(self.status_host, str(self.status_port))
+        self.nginx_version_url = '{}/nginx_version'.format(self.base_status_url)
+        self.address_url = '{}/address'.format(self.base_status_url)
+        self.caches_url = '{}/caches'.format(self.base_status_url)
+        self.server_zones_url = '{}/server_zones'.format(self.base_status_url)
+        self.upstreams_url = '{}/upstreams'.format(self.base_status_url)
+        self.stream_upstream_url = '{}/stream/upstreams'.format(self.base_status_url)
+        self.stream_server_zones_url = '{}/stream/server_zones'.format(self.base_status_url)
+        self.connections_url = '{}/connections'.format(self.base_status_url)
+        self.requests_url = '{}/requests'.format(self.base_status_url)
+        self.ssl_url = '{}/ssl'.format(self.base_status_url)
+        self.slabs_urls = '{}/ssl'.format(self.base_status_url)
 
     def get_status(self):
+        return self._send_get(self.base_status_url)
+
+    def get_connections(self):
+        return self._send_get(self.connections_url)
+
+    def get_requests(self):
+        return self._send_get(self.requests_url)
+
+    def get_ssl(self):
+        return self._send_get(self.ssl_url)
+
+    def get_slabs(self):
+        return self._send_get(self.slabs_urls)
+
+    def get_nginx_version(self):
+        return self._send_get(self.nginx_version_url)
+
+    def get_nginx_address(self):
+        return self._send_get(self.address_url)
+
+    def get_caches(self):
+        return self._send_get(self.caches_url)
+
+    def get_server_zones(self):
+        return self._send_get(self.server_zones_url)
+
+    def get_upstreams(self):
+        return self._send_get(self.upstreams_url)
+
+    def get_stream_upstreams(self):
+        return self._send_get(self.stream_upstream_url)
+
+    def get_stream_server_zones(self):
+        return self._send_get(self.stream_server_zones_url)
+
+    def _send_get(self, url):
         '''
-        Fetch the server status JSON.
+        Performs a GET against the given url.
         '''
         status = None
         try:
-            response = requests.get(self.status_url)
+            response = requests.get(url)
             if response.status_code == requests.codes.ok:
                 status = response.json()
             else:
-                LOGGER.error('Unexpected status code: {}, received when fetching status from {}'\
-                    .format(response.status_code, self.status_url))
+                LOGGER.error('Unexpected status code: {}, received from {}'.format(response.status_code, url))
         except Exception as e:
-            LOGGER.exception('Failed to retrieve status from {}. {}'.format(self.status_url, e))
+            LOGGER.exception('Failed request from {}. {}'.format(self.base_status_url, e))
         return status
 
 

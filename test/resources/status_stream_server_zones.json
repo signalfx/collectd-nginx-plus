@@ -1,0 +1,28 @@
+{
+  "postgresql_loadbalancer": {
+    "processing": 0,
+    "connections": 439412,
+    "sessions": {
+      "2xx": 439412,
+      "4xx": 0,
+      "5xx": 0,
+      "total": 439412
+    },
+    "discarded": 0,
+    "received": 47017084,
+    "sent": 6318908586
+  },
+  "dns_loadbalancer": {
+    "processing": 0,
+    "connections": 252193,
+    "sessions": {
+      "2xx": 252184,
+      "4xx": 0,
+      "5xx": 9,
+      "total": 252193
+    },
+    "discarded": 0,
+    "received": 6809211,
+    "sent": 33214396
+  }
+}
