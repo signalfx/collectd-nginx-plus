@@ -534,42 +534,80 @@ class NginxStatusAgent:
         self.connections_url = '{}/connections'.format(self.base_status_url)
         self.requests_url = '{}/requests'.format(self.base_status_url)
         self.ssl_url = '{}/ssl'.format(self.base_status_url)
-        self.slabs_urls = '{}/ssl'.format(self.base_status_url)
+        self.slabs_url = '{}/slabs'.format(self.base_status_url)
 
     def get_status(self):
+        '''
+        Fetch the status summary for every component.
+        '''
         return self._send_get(self.base_status_url)
 
     def get_connections(self):
+        '''
+        Fetch the connections status summary.
+        '''
         return self._send_get(self.connections_url)
 
     def get_requests(self):
+        '''
+        Fetch the requests status summary.
+        '''
         return self._send_get(self.requests_url)
 
     def get_ssl(self):
+        '''
+        Fetch the ssl status summary.
+        '''
         return self._send_get(self.ssl_url)
 
     def get_slabs(self):
-        return self._send_get(self.slabs_urls)
+        '''
+        Fetch the memory slabs status summary.
+        '''
+        return self._send_get(self.slabs_url)
 
     def get_nginx_version(self):
+        '''
+        Fetch the version of nginx+.
+        Note, this will only return the value, not a dict.
+        '''
         return self._send_get(self.nginx_version_url)
 
     def get_nginx_address(self):
+        '''
+        Fetch the address of the nginx+ instance.
+        Note, this will only return the value, not a dict.
+        '''
         return self._send_get(self.address_url)
 
     def get_caches(self):
+        '''
+        Fetch the caches status summary.
+        '''
         return self._send_get(self.caches_url)
 
     def get_server_zones(self):
+        '''
+        Fetch the server-zones status summary.
+        '''
         return self._send_get(self.server_zones_url)
 
     def get_upstreams(self):
+        '''
+        Fetch the upstreams status summary.
+        '''
         return self._send_get(self.upstreams_url)
 
     def get_stream_upstreams(self):
+        '''
+        Fetch the stream upstreams status summary.
+        '''
         return self._send_get(self.stream_upstream_url)
 
     def get_stream_server_zones(self):
+        '''
+        Fetch the stream server zones status summary.
+        '''
         return self._send_get(self.stream_server_zones_url)
 
     def _send_get(self, url):
