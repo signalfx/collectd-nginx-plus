@@ -80,7 +80,7 @@ class MetricSink:
         emit_value.type = metric_record.type
         emit_value.type_instance = metric_record.name
         emit_value.plugin_instance = metric_record.instance_id
-        emit_value.plugin_instance += '[{}]'.format(metric_record.dimensions)
+        emit_value.plugin_instance += '[{}]'.format(self._format_dimensions(metric_record.dimensions))
 
         # With some versions of CollectD, a dummy metadata map must to be added
         # to each value for it to be correctly serialized to JSON by the
@@ -89,6 +89,13 @@ class MetricSink:
         emit_value.meta = {'true': 'true'}
 
         emit_value.dispatch()
+
+    def _format_dimensions(self, dimensions):
+        '''
+        Formats a dictionary of key/value pairs as a comma-delimited list of key=value tokens.
+        This was copied from docker-collectd-plugin.
+        '''
+        return ','.join(['='.join(pair) for pair in dimensions.items()])
 
 # Server configueration flags
 STATUS_HOST = 'StatusHost'
@@ -281,7 +288,7 @@ class NginxPlusPlugin:
             return
 
         self._reload_ephemerial_global_dimensions()
-        
+
         for emitter in self.emitters:
             emitter.emit(self.sink)
 
