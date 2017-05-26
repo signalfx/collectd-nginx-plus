@@ -206,6 +206,7 @@ class NginxPlusPlugin:
         self.nginx_agent = None
         self.sink = None
         self.emitters = []
+        self.global_dimensions = {}
 
         self._instance_id = None
 
@@ -279,6 +280,8 @@ class NginxPlusPlugin:
             LOGGER.warning('Skipping read, instance id is not set')
             return
 
+        self._reload_ephemerial_global_dimensions()
+        
         for emitter in self.emitters:
             emitter.emit(self.sink)
 
@@ -288,11 +291,8 @@ class NginxPlusPlugin:
         '''
         LOGGER.debug('Emitting connection metrics')
 
-        nginx_version = self.nginx_agent.get_nginx_version()
         status_json = self.nginx_agent.get_connections()
-
-        dimensions = {'nginx.version' : nginx_version}
-        self._fetch_and_emit_metrics(status_json, metrics, dimensions, sink)
+        self._fetch_and_emit_metrics(status_json, metrics, sink)
 
     def _emit_ssl_metrics(self, metrics, sink):
         '''
@@ -300,11 +300,8 @@ class NginxPlusPlugin:
         '''
         LOGGER.debug('Emitting ssl metrics')
 
-        nginx_version = self.nginx_agent.get_nginx_version()
         status_json = self.nginx_agent.get_ssl()
-
-        dimensions = {'nginx.version' : nginx_version}
-        self._fetch_and_emit_metrics(status_json, metrics, dimensions, sink)
+        self._fetch_and_emit_metrics(status_json, metrics, sink)
 
     def _emit_requests_metrics(self, metrics, sink):
         '''
@@ -312,11 +309,8 @@ class NginxPlusPlugin:
         '''
         LOGGER.debug('Emitting requests metrics')
 
-        nginx_version = self.nginx_agent.get_nginx_version()
         status_json = self.nginx_agent.get_requests()
-
-        dimensions = {'nginx.version' : nginx_version}
-        self._fetch_and_emit_metrics(status_json, metrics, dimensions, sink)
+        self._fetch_and_emit_metrics(status_json, metrics, sink)
 
     def _emit_server_zone_metrics(self, metrics, sink):
         '''
@@ -401,7 +395,7 @@ class NginxPlusPlugin:
         if containers_obj:
             for container_name, container in containers_obj.iteritems():
                 dimensions = {container_dim_name : container_name}
-                self._fetch_and_emit_metrics(container, metrics, dimensions, sink)
+                self._fetch_and_emit_metrics(container, metrics, sink, dimensions)
 
     def _build_container_keyed_peer_metrics(self, containers_obj, container_dim_name, peer_dim_name, metrics, sink):
         '''
@@ -451,18 +445,29 @@ class NginxPlusPlugin:
                 for peer in container['peers']:
                     # Get the dimensions from each peer server
                     dimensions = {container_dim_name : container_name, peer_dim_name : _reduce_to_path(peer, 'name')}
-                    self._fetch_and_emit_metrics(peer, metrics, dimensions, sink)
+                    self._fetch_and_emit_metrics(peer, metrics, sink, dimensions)
 
-    def _fetch_and_emit_metrics(self, scoped_obj, metrics, dimensions, sink):
+    def _fetch_and_emit_metrics(self, scoped_obj, metrics, sink, dimensions=None):
         '''
         For each metric the value is extracted from the given object and emitted
         with the specified dimensions using the given sink. The current time will
         be passed in on the emit.
+
+        Any global dimensions will be applied to the given dimensions.
         '''
         for metric in metrics:
             value = _reduce_to_path(scoped_obj, metric.scoped_object_key)
             if value is not None:
-                sink.emit(MetricRecord(metric.name, metric.type, value, self.instance_id, dimensions, time.time()))
+                updated_dims = dimensions.copy() if dimensions else {}
+                updated_dims.update(self.global_dimensions)
+                sink.emit(MetricRecord(metric.name, metric.type, value, self.instance_id, updated_dims, time.time()))
+
+    def _reload_ephemerial_global_dimensions(self):
+        '''
+        Reload any global dimensions that have the potential to change after configuration.
+        '''
+        # Anticipate the nginx instance being upgraded between reads
+        self.global_dimensions['nginx.version'] = self.nginx_agent.get_nginx_version()
 
     def _check_bool_config_enabled(self, config_node, key):
         '''
