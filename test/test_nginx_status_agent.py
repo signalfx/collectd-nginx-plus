@@ -3,16 +3,16 @@ import random
 import string
 from unittest import TestCase
 from requests import HTTPError
-from mock import Mock, MagicMock, patch
+from mock import Mock, patch
 from plugin.nginx_plus_collectd import NginxStatusAgent
 
 class NginxStatusAgentTest(TestCase):
     def setUp(self):
-        self.status_host = self._random_string()
-        self.status_port = self._random_int()
-        self.base_status_url = 'http://{}:{}/status'.format(self.status_host, str(self.status_port))
+        status_host = _random_string()
+        status_port = _random_int()
+        self.base_status_url = 'http://{}:{}/status'.format(status_host, str(status_port))
 
-        self.agent = NginxStatusAgent(self.status_host, self.status_port)
+        self.agent = NginxStatusAgent(status_host, status_port)
 
     @patch('requests.get')
     def test_return_json_on_ok_status(self, mock_requests_get):
@@ -126,8 +126,8 @@ class NginxStatusAgentTest(TestCase):
         self.agent.get_stream_upstreams()
         mock_requests_get.assert_called_with(expected_url)
 
-    def _random_string(self, length=8):
-        return ''.join(random.choice(string.lowercase) for i in range(length))
+def _random_string(length=8):
+    return ''.join(random.choice(string.lowercase) for i in range(length))
 
-    def _random_int(self, start=0, stop=100000):
-        return random.randint(start, stop)
+def _random_int(start=0, stop=100000):
+    return random.randint(start, stop)

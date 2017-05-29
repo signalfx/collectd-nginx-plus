@@ -6,7 +6,7 @@ import logging
 import requests
 from requests.exceptions import RequestException
 
-class MetricDefinition:
+class MetricDefinition(object):
     '''
     Struct for information needed to build a metric.
 
@@ -21,7 +21,7 @@ class MetricDefinition:
         self.type = metric_type
         self.scoped_object_key = scoped_object_key
 
-class MetricEmitter:
+class MetricEmitter(object):
     '''
     Encapsulates a function to build metrics and the definitions of metrics
     that should be built.
@@ -44,7 +44,7 @@ class MetricEmitter:
         '''
         self.emit_func(self.metrics, sink)
 
-class MetricRecord:
+class MetricRecord(object):
     '''
     Struct for all information needed to emit a single collectd metric.
     MetricSink is the expected consumer of instances of this class.
@@ -63,7 +63,7 @@ class MetricRecord:
         return MetricRecord.TO_STRING_FORMAT.format(self.name, self.type, self.value,\
             self.instance_id, self.dimensions, self.timestamp)
 
-class MetricSink:
+class MetricSink(object):
     '''
     Responsible for transforming and dispatching a MetricRecord via collectd.
     '''
@@ -205,7 +205,7 @@ STREAM_UPSTREAM_METRICS = [
     MetricDefinition('stream.upstreams.health.checks.unhealthy', 'counter', 'health_checks.unhealthy')
 ]
 
-class NginxPlusPlugin:
+class NginxPlusPlugin(object):
     '''
     Collectd plugin for reporting metrics from a single NGINX+ instance.
     '''
@@ -272,7 +272,7 @@ class NginxPlusPlugin:
         self.sink = MetricSink()
         self.nginx_agent = NginxStatusAgent(status_host, status_port)
 
-        LOGGER.debug('Finished configuration. Reading status from {}:{}'.format(status_host, status_port))
+        LOGGER.debug('Finished configuration. Will read status from %s:%s', status_host, status_port)
 
     def read_callback(self):
         '''
@@ -503,7 +503,7 @@ class NginxPlusPlugin:
             raise ValueError('Unable to cast value (%s) to boolean' % value)
 
     def _log_emitter_group_enabled(self, emitter_group):
-        LOGGER.debug('{} enabled, adding emitters'.format(emitter_group))
+        LOGGER.debug('%s enabled, adding emitters', emitter_group)
 
 def _reduce_to_path(obj, path):
     '''
@@ -524,14 +524,15 @@ def _reduce_to_path(obj, path):
     Copied from collectd-elasticsearch
     '''
     try:
-        if type(path) in (str, unicode):
+        if isinstance(path, basestring):
             path = path.split('.')
         return reduce(lambda x, y: x[y], path, obj)
-    except:
-        return None
+    except Exception:
+        sys.exc_clear()
+    return None
 
 
-class NginxStatusAgent:
+class NginxStatusAgent(object):
     '''
     Helper class for interacting with a single NGINX+ instance.
     '''
@@ -636,9 +637,9 @@ class NginxStatusAgent:
             if response.status_code == requests.codes.ok:
                 status = response.json()
             else:
-                LOGGER.error('Unexpected status code: {}, received from {}'.format(response.status_code, url))
+                LOGGER.error('Unexpected status code: %s, received from %s', response.status_code, url)
         except RequestException as e:
-            LOGGER.exception('Failed request to {}. {}'.format(self.base_status_url, e))
+            LOGGER.exception('Failed request to %s. %s', self.base_status_url, e)
         return status
 
 
@@ -655,18 +656,18 @@ class CollectdLogHandler(logging.Handler):
     This was copied from docker-collectd-plugin.py
 
     Arguments
-        plugin -- name of the plugin (default 'unknown')
+        plugin_name -- name of the plugin (default 'unknown')
         verbose -- enable/disable verbose messages (default False)
     '''
 
-    def __init__(self, plugin='unknown', debug=False):
+    def __init__(self, plugin_name='unknown', debug=False):
         '''
         Initializes CollectdLogHandler
         Arguments
-            plugin -- string name of the plugin (default 'unknown')
+            plugin_name -- string name of the plugin (default 'unknown')
             debug  -- boolean to enable debug level logging, defaults to false
         '''
-        self.plugin = plugin
+        self.plugin_name = plugin_name
         self.debug = debug
 
         logging.Handler.__init__(self, level=logging.NOTSET)
@@ -681,19 +682,19 @@ class CollectdLogHandler(logging.Handler):
         try:
             if record.msg is not None:
                 if record.levelname == 'ERROR':
-                    collectd.error('%s : %s' % (self.plugin, record.msg))
+                    collectd.error(self.format(record))
                 elif record.levelname == 'WARNING':
-                    collectd.warning('%s : %s' % (self.plugin, record.msg))
+                    collectd.warning(self.format(record))
                 elif record.levelname == 'INFO':
-                    collectd.info('%s : %s' % (self.plugin, record.msg))
+                    collectd.info(self.format(record))
                 elif record.levelname == 'DEBUG' and self.debug:
-                    collectd.debug('%s : %s' % (self.plugin, record.msg))
+                    collectd.debug(self.format(record))
         except Exception as e:
             collectd.warning(('{p} [ERROR]: Failed to write log statement due '
-                              'to: {e}').format(p=self.plugin, e=e))
+                              'to: {e}').format(p=self.plugin_name, e=e))
 
 
-class CollectdMock:
+class CollectdMock(object):
     '''
     Mock of the collectd module.
 
@@ -724,7 +725,7 @@ class CollectdMock:
         return (self.value_mock)()
 
 
-class CollectdValuesMock:
+class CollectdValuesMock(object):
     '''
     Mock of the collectd Values class.
 
@@ -749,11 +750,11 @@ class CollectdValuesMock:
     def __str__(self):
         attrs = []
         for name in dir(self):
-            if not name.startswith('_') and name is not 'dispatch':
+            if not name.startswith('_') and name != 'dispatch':
                 attrs.append("{}={}".format(name, getattr(self, name)))
         return "<CollectdValues {}>".format(' '.join(attrs))
 
-class CollectdConfigMock:
+class CollectdConfigMock(object):
     '''
     Mock of the collectd Config class.
 
@@ -763,7 +764,7 @@ class CollectdConfigMock:
     def __init__(self, children=None):
         self.children = children or []
 
-class CollectdConfigChildMock:
+class CollectdConfigChildMock(object):
     '''
     Mock of the collectd Conf child class.
 
@@ -776,20 +777,24 @@ class CollectdConfigChildMock:
 
 
 # Set up logging
+LOG_FILE_DATE_FORMAT = '%Y-%m-%d %H:%M:%S'
+LOG_FILE_MESSAGE_FORMAT = '[%(levelname)s] [nginx-plus-collectd] [%(asctime)s UTC]: %(message)s'
+formatter = logging.Formatter(fmt=LOG_FILE_MESSAGE_FORMAT, datefmt=LOG_FILE_DATE_FORMAT)
 log_handler = CollectdLogHandler('nginx-plus-collectd', False)
+log_handler.setFormatter(formatter)
 LOGGER = logging.getLogger(__name__)
 LOGGER.setLevel(logging.DEBUG)
 LOGGER.propagate = False
 LOGGER.addHandler(log_handler)
 
 if __name__ == '__main__':
-    status_host = sys.argv[1] if len(sys.argv) > 1 else 'demo.nginx.com'
-    status_port = sys.argv[2] if len(sys.argv) > 2 else 80
+    cli_status_host = sys.argv[1] if len(sys.argv) > 1 else 'demo.nginx.com'
+    cli_status_port = sys.argv[2] if len(sys.argv) > 2 else 80
 
     collectd = CollectdMock()
 
-    mock_config_ip_child = CollectdConfigChildMock(STATUS_HOST, [status_host])
-    mock_config_port_child = CollectdConfigChildMock(STATUS_PORT, [status_port])
+    mock_config_ip_child = CollectdConfigChildMock(STATUS_HOST, [cli_status_host])
+    mock_config_port_child = CollectdConfigChildMock(STATUS_PORT, [cli_status_port])
     mock_config_debug_log_level = CollectdConfigChildMock(DEBUG_LOG_LEVEL, ['true'])
 
     # Setup the mock config to enable all metric groups

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 import sys
-from mock import Mock, MagicMock, patch
 from unittest import TestCase
+from mock import Mock, patch
 
 # Mock out the collectd module
 sys.modules['collectd'] = Mock()
@@ -23,7 +23,7 @@ class MetricSinkTest(TestCase):
 
         expected_type = 'counter'
         expected_values = [metric_value]
-        expected_plugin_instance = '{}[nginx.version=1.11.10]'.format(instance_id, metric_dimensions)
+        expected_plugin_instance = '{}[nginx.version=1.11.10]'.format(instance_id)
         expected_type_instance = 'connections.accepted'
         expected_meta = {'true' : 'true'}
         expected_plugin = 'nginx-plus'
@@ -43,7 +43,7 @@ class MetricSinkTest(TestCase):
         self.assertDictEqual(expected_meta, dispatched_value.meta)
 
 
-class CollectdValuesMock:
+class CollectdValuesMock(object):
     def __init__(self):
         self.dispatch_collector = []
 
