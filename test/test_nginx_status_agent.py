@@ -47,84 +47,84 @@ class NginxStatusAgentTest(TestCase):
     @patch('requests.get')
     def test_get_status(self, mock_requests_get):
         self.agent.get_status()
-        mock_requests_get.assert_called_with(self.base_status_url, None)
+        mock_requests_get.assert_called_with(self.base_status_url, auth=None)
 
     @patch('requests.get')
     def test_get_connections(self, mock_requests_get):
         expected_url = '{}/connections'.format(self.base_status_url)
 
         self.agent.get_connections()
-        mock_requests_get.assert_called_with(expected_url, None)
+        mock_requests_get.assert_called_with(expected_url, auth=None)
 
     @patch('requests.get')
     def test_get_requests(self, mock_requests_get):
         expected_url = '{}/requests'.format(self.base_status_url)
 
         self.agent.get_requests()
-        mock_requests_get.assert_called_with(expected_url, None)
+        mock_requests_get.assert_called_with(expected_url, auth=None)
 
     @patch('requests.get')
     def test_get_ssl(self, mock_requests_get):
         expected_url = '{}/ssl'.format(self.base_status_url)
 
         self.agent.get_ssl()
-        mock_requests_get.assert_called_with(expected_url, None)
+        mock_requests_get.assert_called_with(expected_url, auth=None)
 
     @patch('requests.get')
     def test_get_slabs(self, mock_requests_get):
         expected_url = '{}/slabs'.format(self.base_status_url)
 
         self.agent.get_slabs()
-        mock_requests_get.assert_called_with(expected_url, None)
+        mock_requests_get.assert_called_with(expected_url, auth=None)
 
     @patch('requests.get')
     def test_get_nginx_version(self, mock_requests_get):
         expected_url = '{}/nginx_version'.format(self.base_status_url)
 
         self.agent.get_nginx_version()
-        mock_requests_get.assert_called_with(expected_url, None)
+        mock_requests_get.assert_called_with(expected_url, auth=None)
 
     @patch('requests.get')
     def test_get_nginx_address(self, mock_requests_get):
         expected_url = '{}/address'.format(self.base_status_url)
 
         self.agent.get_nginx_address()
-        mock_requests_get.assert_called_with(expected_url, None)
+        mock_requests_get.assert_called_with(expected_url, auth=None)
 
     @patch('requests.get')
     def test_get_caches(self, mock_requests_get):
         expected_url = '{}/caches'.format(self.base_status_url)
 
         self.agent.get_caches()
-        mock_requests_get.assert_called_with(expected_url, None)
+        mock_requests_get.assert_called_with(expected_url, auth=None)
 
     @patch('requests.get')
     def test_get_server_zones(self, mock_requests_get):
         expected_url = '{}/server_zones'.format(self.base_status_url)
 
         self.agent.get_server_zones()
-        mock_requests_get.assert_called_with(expected_url, None)
+        mock_requests_get.assert_called_with(expected_url, auth=None)
 
     @patch('requests.get')
     def test_get_upstreams(self, mock_requests_get):
         expected_url = '{}/upstreams'.format(self.base_status_url)
 
         self.agent.get_upstreams()
-        mock_requests_get.assert_called_with(expected_url, None)
+        mock_requests_get.assert_called_with(expected_url, auth=None)
 
     @patch('requests.get')
     def test_get_stream_server_zones(self, mock_requests_get):
         expected_url = '{}/stream/server_zones'.format(self.base_status_url)
 
         self.agent.get_stream_server_zones()
-        mock_requests_get.assert_called_with(expected_url, None)
+        mock_requests_get.assert_called_with(expected_url, auth=None)
 
     @patch('requests.get')
     def test_get_stream_upstreams(self, mock_requests_get):
         expected_url = '{}/stream/upstreams'.format(self.base_status_url)
 
         self.agent.get_stream_upstreams()
-        mock_requests_get.assert_called_with(expected_url, None)
+        mock_requests_get.assert_called_with(expected_url, auth=None)
 
     @patch('requests.get')
     def test_get_status_with_auth(self, mock_requests_get):
@@ -135,7 +135,7 @@ class NginxStatusAgentTest(TestCase):
         auth_agent = NginxStatusAgent(self.status_host, self.status_port, username, password)
 
         auth_agent.get_status()
-        mock_requests_get.assert_called_with(self.base_status_url, auth_tuple)
+        mock_requests_get.assert_called_with(self.base_status_url, auth=auth_tuple)
 
 def _random_string(length=8):
     return ''.join(random.choice(string.lowercase) for i in range(length))

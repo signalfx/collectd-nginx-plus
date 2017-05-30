@@ -642,7 +642,7 @@ class NginxStatusAgent(object):
         '''
         status = None
         try:
-            response = requests.get(url, self.auth_tuple)
+            response = requests.get(url, auth=self.auth_tuple)
             if response.status_code == requests.codes.ok:
                 status = response.json()
             else:
@@ -753,7 +753,7 @@ class CollectdValuesMock(object):
         if getattr(self, 'type_instance', None):
             identifier += '-' + self.type_instance
 
-        print 'PUTVAL', identifier, ':'.join(map(str, [int(self.time)] + self.values))
+        print '[PUTVAL]', identifier, ':'.join(map(str, [int(self.time)] + self.values))
 
     def __str__(self):
         attrs = []
@@ -805,6 +805,9 @@ if __name__ == '__main__':
     mock_config_port_child = CollectdConfigChildMock(STATUS_PORT, [cli_status_port])
     mock_config_debug_log_level = CollectdConfigChildMock(DEBUG_LOG_LEVEL, ['true'])
 
+    mock_config_username = CollectdConfigChildMock(USERNAME, ['user1'])
+    mock_config_password = CollectdConfigChildMock(PASSWORD, ['test'])
+
     # Setup the mock config to enable all metric groups
     mock_config_server_zone_child = CollectdConfigChildMock(SERVER_ZONE, ['true'])
     mock_config_memory_zone_child = CollectdConfigChildMock(MEMORY_ZONE, ['true'])
@@ -821,7 +824,9 @@ if __name__ == '__main__':
                                       mock_config_upstream_child,
                                       mock_config_cache_child,
                                       mock_config_stream_server_zone_child,
-                                      mock_config_stream_upstream_child])
+                                      mock_config_stream_upstream_child,
+                                      mock_config_username,
+                                      mock_config_password])
 
     plugin = NginxPlusPlugin()
     plugin.config_callback(mock_config)
