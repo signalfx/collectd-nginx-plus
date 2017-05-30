@@ -104,6 +104,7 @@ DEBUG_LOG_LEVEL = 'DebugLogLevel'
 USERNAME = 'Username'
 PASSWORD = 'Password'
 DIMENSION = 'Dimension'
+DIMENSIONS = 'Dimensions' # Not publicly facing, used to support neo-agent auto-generated configs
 
 # Metric group configuration flags
 SERVER_ZONE = 'ServerZone'
@@ -244,6 +245,14 @@ class NginxPlusPlugin(object):
                 username = node.values[0]
             elif node.key == PASSWORD:
                 password = node.values[0]
+            elif node.key == DIMENSIONS:
+                # The DIMENSIONS configuration property used to include dimensions represented as single string
+                # in the format: key_1=value-1,key_2=value_2
+                # We need this alternative path for specifying dimensions to support the auto-generated plugin
+                # configurations from neo-agent.
+                # The single DIMENSION configuration entries are easier for humans to work with and is the documented
+                # format for specifying additional dimensions
+                self.global_dimensions.update(self._dimensions_str_to_dict(node.values[0]))
             elif node.key == DIMENSION and len(node.values) == 2:
                 self.global_dimensions[node.values[0]] = node.values[1]
             elif self._check_bool_config_enabled(node, DEBUG_LOG_LEVEL):
@@ -487,6 +496,16 @@ class NginxPlusPlugin(object):
         key and if that key's value is a True bool.
         '''
         return config_node.key == key and self._str_to_bool(config_node.values[0])
+
+    def _dimensions_str_to_dict(self, dimensions_str):
+        dimensions = {}
+        for key_pair in dimensions_str.split(','):
+            key_pair_split = key_pair.split('=')
+            if len(key_pair_split) == 2:
+                dimensions[key_pair_split[0]] = key_pair_split[1]
+            else:
+                LOGGER.warning('Malformed dimension key=value pair: %s', key_pair)
+        return dimensions
 
     def _str_to_bool(self, value):
         '''
@@ -837,6 +856,7 @@ if __name__ == '__main__':
     mock_config_password = CollectdConfigChildMock(PASSWORD, ['test'])
 
     mock_config_dimension = CollectdConfigChildMock(DIMENSION, ['foo', 'bar'])
+    mock_config_dimensions = CollectdConfigChildMock(DIMENSIONS, ['bat=baz'])
 
     # Setup the mock config to enable all metric groups
     mock_config_server_zone_child = CollectdConfigChildMock(SERVER_ZONE, ['true'])
@@ -857,7 +877,8 @@ if __name__ == '__main__':
                                       mock_config_stream_upstream_child,
                                       mock_config_username,
                                       mock_config_password,
-                                      mock_config_dimension])
+                                      mock_config_dimension,
+                                      mock_config_dimensions])
 
     plugin_manager = NginxPlusPluginManager()
     plugin_manager.config_callback(mock_config)

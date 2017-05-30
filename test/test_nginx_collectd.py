@@ -17,7 +17,7 @@ from plugin.nginx_plus_collectd import NginxPlusPlugin, MetricRecord, MetricDefi
                                         CACHE_METRICS, CACHE, STREAM_SERVER_ZONE_METRICS, STREAM_SERVER_ZONE,\
                                         STREAM_UPSTREAM_METRICS, STREAM_UPSTREAM, STATUS_HOST, STATUS_PORT,\
                                         DEFAULT_SSL_METRICS, DEFAULT_REQUESTS_METRICS, DEBUG_LOG_LEVEL, log_handler,\
-                                        USERNAME, PASSWORD, DIMENSION
+                                        USERNAME, PASSWORD, DIMENSION, DIMENSIONS
 
 class NginxCollectdTest(TestCase):
     def setUp(self):
@@ -253,6 +253,45 @@ class NginxCollectdTest(TestCase):
 
         mock_config = Mock()
         mock_config.children = [mock_config_child_1, mock_config_child_2]
+
+        self.plugin.configure(mock_config)
+        self.assertDictEqual(expected_global_dimensions, self.plugin.global_dimensions)
+
+    def test_configure_neo_agent_dimension_str(self):
+        self.plugin.global_dimensions = {} # Reset the global dimensions
+
+        expected_dim_key = self._random_string()
+        expected_dim_value = self._random_string()
+
+        expected_global_dimensions = {expected_dim_key : expected_dim_value}
+        dimensions_str = '{}={}'.format(expected_dim_key, expected_dim_value)
+
+        mock_config_child = Mock()
+        mock_config_child.key = DIMENSIONS
+        mock_config_child.values = [dimensions_str]
+
+        mock_config = Mock()
+        mock_config.children = [mock_config_child]
+
+        self.plugin.configure(mock_config)
+        self.assertDictEqual(expected_global_dimensions, self.plugin.global_dimensions)
+
+    def test_configure_neo_agent_dimension_str_malformed(self):
+        self.plugin.global_dimensions = {} # Reset the global dimensions
+
+        expected_dim_key = self._random_string()
+        expected_dim_value = self._random_string()
+        missing_dim_key = self._random_string()
+
+        expected_global_dimensions = {expected_dim_key : expected_dim_value}
+        dimensions_str = '{}={},{}'.format(expected_dim_key, expected_dim_value, missing_dim_key)
+
+        mock_config_child = Mock()
+        mock_config_child.key = DIMENSIONS
+        mock_config_child.values = [dimensions_str]
+
+        mock_config = Mock()
+        mock_config.children = [mock_config_child]
 
         self.plugin.configure(mock_config)
         self.assertDictEqual(expected_global_dimensions, self.plugin.global_dimensions)
