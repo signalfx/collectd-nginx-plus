@@ -17,7 +17,8 @@ from plugin.nginx_plus_collectd import NginxPlusPlugin, MetricRecord, MetricDefi
                                         MEMORY_ZONE_METRICS, MEMORY_ZONE, UPSTREAM_METRICS, UPSTREAM,\
                                         CACHE_METRICS, CACHE, STREAM_SERVER_ZONE_METRICS, STREAM_SERVER_ZONE,\
                                         STREAM_UPSTREAM_METRICS, STREAM_UPSTREAM, STATUS_HOST, STATUS_PORT,\
-                                        DEFAULT_SSL_METRICS, DEFAULT_REQUESTS_METRICS, DEBUG_LOG_LEVEL, log_handler
+                                        DEFAULT_SSL_METRICS, DEFAULT_REQUESTS_METRICS, DEBUG_LOG_LEVEL, log_handler,\
+                                        USERNAME, PASSWORD
 
 class NginxCollectdTest(TestCase):
     def setUp(self):
@@ -185,6 +186,25 @@ class NginxCollectdTest(TestCase):
 
         self.plugin.config_callback(mock_config)
         self.assertTrue(log_handler.debug)
+
+    def test_config_callback_username_password(self):
+        expected_username = self._random_string()
+        expected_password = self._random_string()
+        expected_auth_tuple = (expected_username, expected_password)
+
+        mock_config_child_1 = Mock()
+        mock_config_child_1.key = USERNAME
+        mock_config_child_1.values = [expected_username]
+
+        mock_config_child_2 = Mock()
+        mock_config_child_2.key = PASSWORD
+        mock_config_child_2.values = [expected_password]
+
+        mock_config = Mock()
+        mock_config.children = [mock_config_child_1, mock_config_child_2]
+
+        self.plugin.config_callback(mock_config)
+        self.assertEquals(expected_auth_tuple, self.plugin.nginx_agent.auth_tuple)
 
     def test_read_callback(self):
         mock_emitter_1 = Mock()

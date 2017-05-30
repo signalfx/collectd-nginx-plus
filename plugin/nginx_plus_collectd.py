@@ -101,6 +101,8 @@ class MetricSink(object):
 STATUS_HOST = 'StatusHost'
 STATUS_PORT = 'StatusPort'
 DEBUG_LOG_LEVEL = 'DebugLogLevel'
+USERNAME = 'Username'
+PASSWORD = 'Password'
 
 # Metric group configuration flags
 SERVER_ZONE = 'ServerZone'
@@ -231,6 +233,8 @@ class NginxPlusPlugin(object):
 
         status_host = None
         status_port = None
+        username = None
+        password = None
 
         # Iterate the configueration values, pickup the status endpoint info
         # and create any specified opt-in metric emitters
@@ -239,6 +243,10 @@ class NginxPlusPlugin(object):
                 status_host = node.values[0]
             elif node.key == STATUS_PORT:
                 status_port = node.values[0]
+            elif node.key == USERNAME:
+                username = node.values[0]
+            elif node.key == PASSWORD:
+                password = node.values[0]
             elif self._check_bool_config_enabled(node, DEBUG_LOG_LEVEL):
                 log_handler.debug = self._str_to_bool(node.values[0])
             elif self._check_bool_config_enabled(node, CACHE):
@@ -270,7 +278,7 @@ class NginxPlusPlugin(object):
         self.emitters.append(MetricEmitter(self._emit_stream_upstreams_metrics, DEFAULT_STREAM_UPSTREAM_METRICS))
 
         self.sink = MetricSink()
-        self.nginx_agent = NginxStatusAgent(status_host, status_port)
+        self.nginx_agent = NginxStatusAgent(status_host, status_port, username, password)
 
         LOGGER.debug('Finished configuration. Will read status from %s:%s', status_host, status_port)
 
@@ -536,9 +544,10 @@ class NginxStatusAgent(object):
     '''
     Helper class for interacting with a single NGINX+ instance.
     '''
-    def __init__(self, status_host=None, status_port=None):
+    def __init__(self, status_host=None, status_port=None, username=None, password=None):
         self.status_host = status_host or 'localhost'
         self.status_port = status_port or 8080
+        self.auth_tuple = (username, password) if username or password else None
 
         self.base_status_url = 'http://{}:{}/status'.format(self.status_host, str(self.status_port))
         self.nginx_version_url = '{}/nginx_version'.format(self.base_status_url)
@@ -633,7 +642,7 @@ class NginxStatusAgent(object):
         '''
         status = None
         try:
-            response = requests.get(url)
+            response = requests.get(url, self.auth_tuple)
             if response.status_code == requests.codes.ok:
                 status = response.json()
             else:
@@ -706,20 +715,19 @@ class CollectdMock(object):
         self.value_mock = CollectdValuesMock
 
     def debug(self, msg):
-        print 'DEBUG: {}'.format(msg)
+        print msg
 
     def info(self, msg):
-        print 'INFO: {}'.format(msg)
+        print msg
 
     def notice(self, msg):
-        print 'NOTICE: {}'.format(msg)
+        print msg
 
     def warning(self, msg):
-        print 'WARN: {}'.format(msg)
+        print msg
 
     def error(self, msg):
-        print 'ERROR: {}'.format(msg)
-        sys.exit(1)
+        print msg
 
     def Values(self):
         return (self.value_mock)()
