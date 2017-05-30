@@ -138,14 +138,6 @@ DEFAULT_UPSTREAM_METRICS = [
     MetricDefinition('upstreams.requests', 'counter', 'requests')
 ]
 
-DEFAULT_STREAM_SERVER_ZONE_METRICS = [
-    MetricDefinition('stream.server.zone.connections', 'counter', 'connections')
-]
-
-DEFAULT_STREAM_UPSTREAM_METRICS = [
-    MetricDefinition('stream.upstreams.connections', 'counter', 'connections')
-]
-
 SERVER_ZONE_METRICS = [
     MetricDefinition('server.zone.processing', 'counter', 'processing'),
     MetricDefinition('server.zone.discarded', 'counter', 'discarded'),
@@ -187,6 +179,7 @@ CACHE_METRICS = [
 ]
 
 STREAM_SERVER_ZONE_METRICS = [
+    MetricDefinition('stream.server.zone.connections', 'counter', 'connections'),
     MetricDefinition('stream.server.zone.processing', 'counter', 'processing'),
     MetricDefinition('stream.server.zone.sessions.2xx', 'counter', 'sessions.2xx'),
     MetricDefinition('stream.server.zone.sessions.4xx', 'counter', 'sessions.4xx'),
@@ -197,6 +190,7 @@ STREAM_SERVER_ZONE_METRICS = [
 ]
 
 STREAM_UPSTREAM_METRICS = [
+    MetricDefinition('stream.upstreams.connections', 'counter', 'connections'),
     MetricDefinition('stream.upstreams.active', 'counter', 'active'),
     MetricDefinition('stream.upstreams.connections.max', 'counter', 'max_conns'),
     MetricDefinition('stream.upstreams.bytes.sent', 'counter', 'sent'),
@@ -277,8 +271,6 @@ class NginxPlusPlugin(object):
         self.emitters.append(MetricEmitter(self._emit_requests_metrics, DEFAULT_REQUESTS_METRICS))
         self.emitters.append(MetricEmitter(self._emit_server_zone_metrics, DEFAULT_SERVER_ZONE_METRICS))
         self.emitters.append(MetricEmitter(self._emit_upstreams_metrics, DEFAULT_UPSTREAM_METRICS))
-        self.emitters.append(MetricEmitter(self._emit_stream_server_zone_metrics, DEFAULT_STREAM_SERVER_ZONE_METRICS))
-        self.emitters.append(MetricEmitter(self._emit_stream_upstreams_metrics, DEFAULT_STREAM_UPSTREAM_METRICS))
 
         self.sink = MetricSink()
         self.nginx_agent = NginxStatusAgent(status_host, status_port, username, password)

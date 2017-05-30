@@ -12,8 +12,7 @@ sys.modules['collectd'] = Mock()
 
 from plugin.nginx_plus_collectd import NginxPlusPlugin, MetricRecord, MetricDefinition,\
                                         DEFAULT_CONNECTION_METRICS, DEFAULT_SERVER_ZONE_METRICS,\
-                                        DEFAULT_UPSTREAM_METRICS, DEFAULT_STREAM_SERVER_ZONE_METRICS,\
-                                        DEFAULT_STREAM_UPSTREAM_METRICS, SERVER_ZONE_METRICS, SERVER_ZONE,\
+                                        DEFAULT_UPSTREAM_METRICS, SERVER_ZONE_METRICS, SERVER_ZONE,\
                                         MEMORY_ZONE_METRICS, MEMORY_ZONE, UPSTREAM_METRICS, UPSTREAM,\
                                         CACHE_METRICS, CACHE, STREAM_SERVER_ZONE_METRICS, STREAM_SERVER_ZONE,\
                                         STREAM_UPSTREAM_METRICS, STREAM_UPSTREAM, STATUS_HOST, STATUS_PORT,\
@@ -1190,8 +1189,6 @@ class NginxCollectdTest(TestCase):
         metric_names.extend(self._extract_metric_names_from_definitions(DEFAULT_REQUESTS_METRICS))
         metric_names.extend(self._extract_metric_names_from_definitions(DEFAULT_SERVER_ZONE_METRICS))
         metric_names.extend(self._extract_metric_names_from_definitions(DEFAULT_UPSTREAM_METRICS))
-        metric_names.extend(self._extract_metric_names_from_definitions(DEFAULT_STREAM_SERVER_ZONE_METRICS))
-        metric_names.extend(self._extract_metric_names_from_definitions(DEFAULT_STREAM_UPSTREAM_METRICS))
 
         return metric_names
 
