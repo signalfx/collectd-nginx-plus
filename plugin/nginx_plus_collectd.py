@@ -217,10 +217,12 @@ class NginxPlusPlugin(object):
     @property
     def instance_id(self):
         if not self._instance_id:
-            self._instance_id = self.nginx_agent.get_nginx_address()
+            nginx_ip = self.nginx_agent.get_nginx_address()
+            if nginx_ip:
+                self._instance_id = '{}:{}'.format(nginx_ip, str(self.nginx_agent.status_port))
         return self._instance_id
 
-    def config_callback(self, conf):
+    def configure(self, conf):
         '''
         Configure the plugin with the configuration provided by collectd.
         '''
@@ -277,18 +279,18 @@ class NginxPlusPlugin(object):
 
         LOGGER.debug('Finished configuration. Will read status from %s:%s', status_host, status_port)
 
-    def read_callback(self):
+    def read(self):
         '''
         Called to emit the actual metrics.
         Called once per interval (see Interval configuration option of collectd).
         If an exception is thrown the plugin will be skipped for an
         increasing amount of time until it returns to normal.
         '''
-        LOGGER.debug('Starting read')
-
         if not self.instance_id:
             LOGGER.warning('Skipping read, instance id is not set')
             return
+
+        LOGGER.debug('Instance %s starting read', self.instance_id)
 
         self._reload_ephemerial_global_dimensions()
 
@@ -299,7 +301,7 @@ class NginxPlusPlugin(object):
         '''
         Extract and emit the connection metrics.
         '''
-        LOGGER.debug('Emitting connection metrics')
+        LOGGER.debug('Emitting connection metrics, instance: %s', self.instance_id)
 
         status_json = self.nginx_agent.get_connections()
         self._fetch_and_emit_metrics(status_json, metrics, sink)
@@ -308,7 +310,7 @@ class NginxPlusPlugin(object):
         '''
         Extract and emit the ssl metrics.
         '''
-        LOGGER.debug('Emitting ssl metrics')
+        LOGGER.debug('Emitting ssl metrics, instance: %s', self.instance_id)
 
         status_json = self.nginx_agent.get_ssl()
         self._fetch_and_emit_metrics(status_json, metrics, sink)
@@ -317,7 +319,7 @@ class NginxPlusPlugin(object):
         '''
         Extract and emit the requests metrics.
         '''
-        LOGGER.debug('Emitting requests metrics')
+        LOGGER.debug('Emitting requests metrics, instance: %s', self.instance_id)
 
         status_json = self.nginx_agent.get_requests()
         self._fetch_and_emit_metrics(status_json, metrics, sink)
@@ -326,7 +328,7 @@ class NginxPlusPlugin(object):
         '''
         Extract and emit the server-zone metrics.
         '''
-        LOGGER.debug('Emitting server-zone metrics')
+        LOGGER.debug('Emitting server-zone metrics, instance: %s', self.instance_id)
 
         server_zones_obj = self.nginx_agent.get_server_zones()
         self._build_container_keyed_metrics(server_zones_obj, 'server.zone.name', metrics, sink)
@@ -335,7 +337,7 @@ class NginxPlusPlugin(object):
         '''
         Extract and emit the upstreams metrics.
         '''
-        LOGGER.debug('Emitting upstreams metrics')
+        LOGGER.debug('Emitting upstreams metrics, instance: %s', self.instance_id)
 
         upstreams_obj = self.nginx_agent.get_upstreams()
         self._build_container_keyed_peer_metrics(upstreams_obj, 'upstream.name', 'upstream.peer.name', metrics, sink)
@@ -344,7 +346,7 @@ class NginxPlusPlugin(object):
         '''
         Extract and emit the stream-server-zone metrics.
         '''
-        LOGGER.debug('Emitting stream-server-zone metrics')
+        LOGGER.debug('Emitting stream-server-zone metrics, instance: %s', self.instance_id)
 
         server_zones_obj = self.nginx_agent.get_stream_server_zones()
         self._build_container_keyed_metrics(server_zones_obj, 'stream.server.zone.name', metrics, sink)
@@ -353,7 +355,7 @@ class NginxPlusPlugin(object):
         '''
         Extract and emit the stream-upstream metrics.
         '''
-        LOGGER.debug('Emitting stream-upstreams metrics')
+        LOGGER.debug('Emitting stream-upstreams metrics, instance: %s', self.instance_id)
 
         upstreams_obj = self.nginx_agent.get_stream_upstreams()
         self._build_container_keyed_peer_metrics(upstreams_obj, 'stream.upstream.name', 'stream.upstream.peer.name',\
@@ -363,7 +365,7 @@ class NginxPlusPlugin(object):
         '''
         Extract and emit the memory zone metrics.
         '''
-        LOGGER.debug('Emitting memory-zone metrics')
+        LOGGER.debug('Emitting memory-zone metrics, instance: %s', self.instance_id)
 
         slab_obj = self.nginx_agent.get_slabs()
         self._build_container_keyed_metrics(slab_obj, 'memory.zone.name', metrics, sink)
@@ -372,7 +374,7 @@ class NginxPlusPlugin(object):
         '''
         Extract and emit the cache metrics.
         '''
-        LOGGER.debug('Emitting cache metrics')
+        LOGGER.debug('Emitting cache metrics, instance: %s', self.instance_id)
 
         cache_obj = self.nginx_agent.get_caches()
         self._build_container_keyed_metrics(cache_obj, 'cache.name', metrics, sink)
@@ -507,6 +509,37 @@ class NginxPlusPlugin(object):
 
     def _log_emitter_group_enabled(self, emitter_group):
         LOGGER.debug('%s enabled, adding emitters', emitter_group)
+
+class NginxPlusPluginManager(object):
+    '''
+    Class to create, configure and manage instances of NginxPlusPlugin.
+    The config and read methods of this class will be registered with collectd,
+    proxying to the configure and read methods of the plugin instances it is composed of.
+    '''
+    def __init__(self):
+        self.plugins = []
+
+    def config_callback(self, conf):
+        '''
+        Create and configure an instance of NginxPlusPlugin.
+        The created plugin will be added to the list of plugins
+        managed by this instance.
+        '''
+        plugin = NginxPlusPlugin()
+        plugin.configure(conf)
+
+        self.plugins.append(plugin)
+
+    def read_callback(self):
+        '''
+        Called to emit the actual metrics.
+        Called once per interval (see Interval configuration option of collectd)
+        on each instance of NginxPlusPlugin managed by this instance.
+        If an exception is thrown the plugin will be skipped for an
+        increasing amount of time until it returns to normal.
+        '''
+        for plugin in self.plugins:
+            plugin.read()
 
 def _reduce_to_path(obj, path):
     '''
@@ -826,16 +859,16 @@ if __name__ == '__main__':
                                       mock_config_password,
                                       mock_config_dimension])
 
-    plugin = NginxPlusPlugin()
-    plugin.config_callback(mock_config)
+    plugin_manager = NginxPlusPluginManager()
+    plugin_manager.config_callback(mock_config)
 
     while True:
-        plugin.read_callback()
+        plugin_manager.read_callback()
         time.sleep(5)
 else:
     import collectd
 
-    plugin = NginxPlusPlugin()
+    plugin_manager = NginxPlusPluginManager()
 
-    collectd.register_config(plugin.config_callback)
-    collectd.register_read(plugin.read_callback)
+    collectd.register_config(plugin_manager.config_callback)
+    collectd.register_read(plugin_manager.read_callback)

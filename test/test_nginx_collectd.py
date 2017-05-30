@@ -29,7 +29,9 @@ class NginxCollectdTest(TestCase):
         self.plugin._reload_ephemerial_global_dimensions()
 
     def test_instance_id_set(self):
-        expected_instance_id = '206.251.255.64' # Mocked response for get_nginx_version, see _build_mock_nginx_agent()
+        self.plugin.nginx_agent.status_port = self._random_int()
+        expected_instance_id = '206.251.255.64:' + str(self.plugin.nginx_agent.status_port)
+
         self.plugin._instance_id = None
 
         actual_instance_id = self.plugin.instance_id
@@ -41,19 +43,19 @@ class NginxCollectdTest(TestCase):
 
         self.assertEquals(0, len(self.mock_sink.captured_records))
 
-    def test_config_callback_only_defaults_emitters(self):
+    def test_configure_only_defaults_emitters(self):
         expected_metric_names = self._get_default_metric_names()
 
         mock_config = Mock()
         mock_config.children = {}
 
-        self.plugin.config_callback(mock_config)
+        self.plugin.configure(mock_config)
         actual_metric_names = self._get_metrics_names_from_plugin()
 
         self.assertEquals(len(expected_metric_names), len(actual_metric_names))
         self.assertItemsEqual(expected_metric_names, actual_metric_names)
 
-    def test_config_callback_server_zone_emitters(self):
+    def test_configure_server_zone_emitters(self):
         expected_metric_names = self._get_default_metric_names()
         expected_metric_names.extend(self._extract_metric_names_from_definitions(SERVER_ZONE_METRICS))
 
@@ -64,13 +66,13 @@ class NginxCollectdTest(TestCase):
 
         mock_config.children = [mock_config_child]
 
-        self.plugin.config_callback(mock_config)
+        self.plugin.configure(mock_config)
         actual_metric_names = self._get_metrics_names_from_plugin()
 
         self.assertEquals(len(expected_metric_names), len(actual_metric_names))
         self.assertItemsEqual(expected_metric_names, actual_metric_names)
 
-    def test_config_callback_memory_zone_emitters(self):
+    def test_configure_memory_zone_emitters(self):
         expected_metric_names = self._get_default_metric_names()
         expected_metric_names.extend(self._extract_metric_names_from_definitions(MEMORY_ZONE_METRICS))
 
@@ -81,13 +83,13 @@ class NginxCollectdTest(TestCase):
 
         mock_config.children = [mock_config_child]
 
-        self.plugin.config_callback(mock_config)
+        self.plugin.configure(mock_config)
         actual_metric_names = self._get_metrics_names_from_plugin()
 
         self.assertEquals(len(expected_metric_names), len(actual_metric_names))
         self.assertItemsEqual(expected_metric_names, actual_metric_names)
 
-    def test_config_callback_upstream_emitters(self):
+    def test_configure_upstream_emitters(self):
         expected_metric_names = self._get_default_metric_names()
         expected_metric_names.extend(self._extract_metric_names_from_definitions(UPSTREAM_METRICS))
 
@@ -98,13 +100,13 @@ class NginxCollectdTest(TestCase):
 
         mock_config.children = [mock_config_child]
 
-        self.plugin.config_callback(mock_config)
+        self.plugin.configure(mock_config)
         actual_metric_names = self._get_metrics_names_from_plugin()
 
         self.assertEquals(len(expected_metric_names), len(actual_metric_names))
         self.assertItemsEqual(expected_metric_names, actual_metric_names)
 
-    def test_config_callback_cache_emitters(self):
+    def test_configure_cache_emitters(self):
         expected_metric_names = self._get_default_metric_names()
         expected_metric_names.extend(self._extract_metric_names_from_definitions(CACHE_METRICS))
 
@@ -115,13 +117,13 @@ class NginxCollectdTest(TestCase):
 
         mock_config.children = [mock_config_child]
 
-        self.plugin.config_callback(mock_config)
+        self.plugin.configure(mock_config)
         actual_metric_names = self._get_metrics_names_from_plugin()
 
         self.assertEquals(len(expected_metric_names), len(actual_metric_names))
         self.assertItemsEqual(expected_metric_names, actual_metric_names)
 
-    def test_config_callback_stream_server_zone_emitters(self):
+    def test_configure_stream_server_zone_emitters(self):
         expected_metric_names = self._get_default_metric_names()
         expected_metric_names.extend(self._extract_metric_names_from_definitions(STREAM_SERVER_ZONE_METRICS))
 
@@ -132,13 +134,13 @@ class NginxCollectdTest(TestCase):
 
         mock_config.children = [mock_config_child]
 
-        self.plugin.config_callback(mock_config)
+        self.plugin.configure(mock_config)
         actual_metric_names = self._get_metrics_names_from_plugin()
 
         self.assertEquals(len(expected_metric_names), len(actual_metric_names))
         self.assertItemsEqual(expected_metric_names, actual_metric_names)
 
-    def test_config_callback_stream_upstream_emitters(self):
+    def test_configure_stream_upstream_emitters(self):
         expected_metric_names = self._get_default_metric_names()
         expected_metric_names.extend(self._extract_metric_names_from_definitions(STREAM_UPSTREAM_METRICS))
 
@@ -149,13 +151,13 @@ class NginxCollectdTest(TestCase):
 
         mock_config.children = [mock_config_child]
 
-        self.plugin.config_callback(mock_config)
+        self.plugin.configure(mock_config)
         actual_metric_names = self._get_metrics_names_from_plugin()
 
         self.assertEquals(len(expected_metric_names), len(actual_metric_names))
         self.assertItemsEqual(expected_metric_names, actual_metric_names)
 
-    def test_config_callback_status_host_port(self):
+    def test_configure_status_host_port(self):
         expected_ip = '192.168.0.24'
         expected_port = '411'
 
@@ -170,12 +172,12 @@ class NginxCollectdTest(TestCase):
         mock_config = Mock()
         mock_config.children = [mock_config_ip_child, mock_config_port_child]
 
-        self.plugin.config_callback(mock_config)
+        self.plugin.configure(mock_config)
 
         self.assertEquals(expected_ip, self.plugin.nginx_agent.status_host)
         self.assertEquals(expected_port, self.plugin.nginx_agent.status_port)
 
-    def test_config_callback_debug_logging(self):
+    def test_configure_debug_logging(self):
         mock_config = Mock()
         mock_config_child = Mock()
         mock_config_child.key = DEBUG_LOG_LEVEL
@@ -183,10 +185,10 @@ class NginxCollectdTest(TestCase):
 
         mock_config.children = [mock_config_child]
 
-        self.plugin.config_callback(mock_config)
+        self.plugin.configure(mock_config)
         self.assertTrue(log_handler.debug)
 
-    def test_config_callback_username_password(self):
+    def test_configure_username_password(self):
         expected_username = self._random_string()
         expected_password = self._random_string()
         expected_auth_tuple = (expected_username, expected_password)
@@ -202,10 +204,10 @@ class NginxCollectdTest(TestCase):
         mock_config = Mock()
         mock_config.children = [mock_config_child_1, mock_config_child_2]
 
-        self.plugin.config_callback(mock_config)
+        self.plugin.configure(mock_config)
         self.assertEquals(expected_auth_tuple, self.plugin.nginx_agent.auth_tuple)
 
-    def test_config_callback_additional_dimensions(self):
+    def test_configure_additional_dimensions(self):
         self.plugin.global_dimensions = {} # Reset the global dimensions
 
         expected_dim_key_1 = self._random_string()
@@ -228,10 +230,10 @@ class NginxCollectdTest(TestCase):
         mock_config = Mock()
         mock_config.children = [mock_config_child_1, mock_config_child_2]
 
-        self.plugin.config_callback(mock_config)
+        self.plugin.configure(mock_config)
         self.assertDictEqual(expected_global_dimensions, self.plugin.global_dimensions)
 
-    def test_config_callback_additional_dimensions_missing_value(self):
+    def test_configure_additional_dimensions_missing_value(self):
         self.plugin.global_dimensions = {} # Reset the global dimensions
 
         expected_dim_key = self._random_string()
@@ -252,10 +254,10 @@ class NginxCollectdTest(TestCase):
         mock_config = Mock()
         mock_config.children = [mock_config_child_1, mock_config_child_2]
 
-        self.plugin.config_callback(mock_config)
+        self.plugin.configure(mock_config)
         self.assertDictEqual(expected_global_dimensions, self.plugin.global_dimensions)
 
-    def test_read_callback(self):
+    def test_read(self):
         mock_emitter_1 = Mock()
         mock_emitter_2 = Mock()
         mock_sink = Mock()
@@ -263,12 +265,12 @@ class NginxCollectdTest(TestCase):
         self.plugin.sink = mock_sink
         self.plugin.emitters = [mock_emitter_1, mock_emitter_2]
 
-        self.plugin.read_callback()
+        self.plugin.read()
 
         mock_emitter_1.emit.assert_called_with(mock_sink)
         mock_emitter_2.emit.assert_called_with(mock_sink)
 
-    def test_read_callback_null_instance_id(self):
+    def test_read_null_instance_id(self):
         mock_nginx_agent = Mock()
         mock_nginx_agent.get_nginx_address = MagicMock(return_value=None)
 
@@ -281,7 +283,7 @@ class NginxCollectdTest(TestCase):
         self.plugin.nginx_agent = mock_nginx_agent
         self.plugin.emitters = [mock_emitter_1, mock_emitter_2]
 
-        self.plugin.read_callback()
+        self.plugin.read()
 
         mock_emitter_1.assert_not_called()
         mock_emitter_2.assert_not_called()
