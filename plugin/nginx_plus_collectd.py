@@ -103,6 +103,7 @@ STATUS_PORT = 'StatusPort'
 DEBUG_LOG_LEVEL = 'DebugLogLevel'
 USERNAME = 'Username'
 PASSWORD = 'Password'
+DIMENSION = 'Dimension'
 
 # Metric group configuration flags
 SERVER_ZONE = 'ServerZone'
@@ -247,6 +248,8 @@ class NginxPlusPlugin(object):
                 username = node.values[0]
             elif node.key == PASSWORD:
                 password = node.values[0]
+            elif node.key == DIMENSION and len(node.values) == 2:
+                self.global_dimensions[node.values[0]] = node.values[1]
             elif self._check_bool_config_enabled(node, DEBUG_LOG_LEVEL):
                 log_handler.debug = self._str_to_bool(node.values[0])
             elif self._check_bool_config_enabled(node, CACHE):
@@ -808,6 +811,8 @@ if __name__ == '__main__':
     mock_config_username = CollectdConfigChildMock(USERNAME, ['user1'])
     mock_config_password = CollectdConfigChildMock(PASSWORD, ['test'])
 
+    mock_config_dimension = CollectdConfigChildMock(DIMENSION, ['foo', 'bar'])
+
     # Setup the mock config to enable all metric groups
     mock_config_server_zone_child = CollectdConfigChildMock(SERVER_ZONE, ['true'])
     mock_config_memory_zone_child = CollectdConfigChildMock(MEMORY_ZONE, ['true'])
@@ -826,7 +831,8 @@ if __name__ == '__main__':
                                       mock_config_stream_server_zone_child,
                                       mock_config_stream_upstream_child,
                                       mock_config_username,
-                                      mock_config_password])
+                                      mock_config_password,
+                                      mock_config_dimension])
 
     plugin = NginxPlusPlugin()
     plugin.config_callback(mock_config)

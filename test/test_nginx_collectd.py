@@ -18,7 +18,7 @@ from plugin.nginx_plus_collectd import NginxPlusPlugin, MetricRecord, MetricDefi
                                         CACHE_METRICS, CACHE, STREAM_SERVER_ZONE_METRICS, STREAM_SERVER_ZONE,\
                                         STREAM_UPSTREAM_METRICS, STREAM_UPSTREAM, STATUS_HOST, STATUS_PORT,\
                                         DEFAULT_SSL_METRICS, DEFAULT_REQUESTS_METRICS, DEBUG_LOG_LEVEL, log_handler,\
-                                        USERNAME, PASSWORD
+                                        USERNAME, PASSWORD, DIMENSION
 
 class NginxCollectdTest(TestCase):
     def setUp(self):
@@ -205,6 +205,56 @@ class NginxCollectdTest(TestCase):
 
         self.plugin.config_callback(mock_config)
         self.assertEquals(expected_auth_tuple, self.plugin.nginx_agent.auth_tuple)
+
+    def test_config_callback_additional_dimensions(self):
+        self.plugin.global_dimensions = {} # Reset the global dimensions
+
+        expected_dim_key_1 = self._random_string()
+        expected_dim_value_1 = self._random_string()
+
+        expected_dim_key_2 = self._random_string()
+        expected_dim_value_2 = self._random_string()
+
+        expected_global_dimensions = {expected_dim_key_1 : expected_dim_value_1,
+                                      expected_dim_key_2 : expected_dim_value_2}
+
+        mock_config_child_1 = Mock()
+        mock_config_child_1.key = DIMENSION
+        mock_config_child_1.values = [expected_dim_key_1, expected_dim_value_1]
+
+        mock_config_child_2 = Mock()
+        mock_config_child_2.key = DIMENSION
+        mock_config_child_2.values = [expected_dim_key_2, expected_dim_value_2]
+
+        mock_config = Mock()
+        mock_config.children = [mock_config_child_1, mock_config_child_2]
+
+        self.plugin.config_callback(mock_config)
+        self.assertDictEqual(expected_global_dimensions, self.plugin.global_dimensions)
+
+    def test_config_callback_additional_dimensions_missing_value(self):
+        self.plugin.global_dimensions = {} # Reset the global dimensions
+
+        expected_dim_key = self._random_string()
+        expected_dim_value = self._random_string()
+
+        missing_dim_key = self._random_string()
+
+        expected_global_dimensions = {expected_dim_key : expected_dim_value}
+
+        mock_config_child_1 = Mock()
+        mock_config_child_1.key = DIMENSION
+        mock_config_child_1.values = [expected_dim_key, expected_dim_value]
+
+        mock_config_child_2 = Mock()
+        mock_config_child_2.key = DIMENSION
+        mock_config_child_2.values = [missing_dim_key]
+
+        mock_config = Mock()
+        mock_config.children = [mock_config_child_1, mock_config_child_2]
+
+        self.plugin.config_callback(mock_config)
+        self.assertDictEqual(expected_global_dimensions, self.plugin.global_dimensions)
 
     def test_read_callback(self):
         mock_emitter_1 = Mock()
@@ -1106,6 +1156,21 @@ class NginxCollectdTest(TestCase):
 
         self.assertEquals(len(expected_records), len(self.mock_sink.captured_records))
         self._verify_records_captured(expected_records)
+
+    def test_emit_with_extra_dimensions(self):
+        extra_dim_key = self._random_string()
+        extra_dim_value = self._random_string()
+
+        self.plugin.global_dimensions[extra_dim_key] = extra_dim_value
+
+        metrics = [MetricDefinition('connections.accepted', 'counter', 'accepted')]
+        expected_record = MetricRecord('connections.accepted', 'counter', 18717986, self.plugin.instance_id,
+                                       {'nginx.version' : '1.11.10', extra_dim_key : extra_dim_value})
+
+        self.plugin._emit_connection_metrics(metrics, self.mock_sink)
+
+        self.assertEquals(1, len(self.mock_sink.captured_records))
+        self._validate_single_record(expected_record, self.mock_sink.captured_records[0])
 
     def _random_string(self, length=8):
         return ''.join(random.choice(string.lowercase) for i in range(length))
