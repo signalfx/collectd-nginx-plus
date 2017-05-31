@@ -95,7 +95,7 @@ class MetricSink(object):
         Formats a dictionary of key/value pairs as a comma-delimited list of key=value tokens.
         This was copied from docker-collectd-plugin.
         '''
-        return ','.join(['='.join(pair) for pair in dimensions.items()])
+        return ','.join(['='.join((key.replace('.','_'), value)) for key, value in dimensions.iteritems()])
 
 # Server configueration flags
 STATUS_HOST = 'StatusHost'

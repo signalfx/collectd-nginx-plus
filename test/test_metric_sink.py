@@ -23,7 +23,7 @@ class MetricSinkTest(TestCase):
 
         expected_type = 'counter'
         expected_values = [metric_value]
-        expected_plugin_instance = '{}[nginx.version=1.11.10]'.format(instance_id)
+        expected_plugin_instance = '{}[nginx_version=1.11.10]'.format(instance_id)
         expected_type_instance = 'connections.accepted'
         expected_meta = {'true' : 'true'}
         expected_plugin = 'nginx-plus'
@@ -42,6 +42,18 @@ class MetricSinkTest(TestCase):
         self.assertEquals(expected_plugin_instance, dispatched_value.plugin_instance)
         self.assertDictEqual(expected_meta, dispatched_value.meta)
 
+    def test_format_dimensions(self):
+        key_1 = 'my.key.1'
+        key_2 = 'my.key.2'
+        value_1 = 'my.value.1'
+        value_2 = 'my.value.2'
+
+        raw_dimensions = {key_1 : value_1, key_2 : value_2}
+
+        expected_dimensions = '{}={},{}={}'.format(key_1.replace('.', '_'), value_1, key_2.replace('.', '_'), value_2)
+        actual_dimensions = self.sink._format_dimensions(raw_dimensions)
+
+        self.assertEquals(expected_dimensions, actual_dimensions)
 
 class CollectdValuesMock(object):
     def __init__(self):
