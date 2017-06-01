@@ -173,8 +173,8 @@ UPSTREAM_METRICS = [
 ]
 
 CACHE_METRICS = [
-    MetricDefinition('caches.size', 'counter', 'size'),
-    MetricDefinition('caches.size.max', 'counter', 'max_size'),
+    MetricDefinition('caches.size', 'gauge', 'size'),
+    MetricDefinition('caches.size.max', 'gauge', 'max_size'),
     MetricDefinition('caches.hits', 'counter', 'hit.responses'),
     MetricDefinition('caches.misses', 'counter', 'miss.responses')
 ]

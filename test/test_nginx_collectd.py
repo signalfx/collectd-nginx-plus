@@ -860,8 +860,8 @@ class NginxCollectdTest(TestCase):
         self._verify_records_captured(expected_records)
 
     def test_cache_size(self):
-        metrics = [MetricDefinition('caches.size', 'counter', 'size')]
-        expected_record = MetricRecord('caches.size', 'counter', 537636864, self.plugin.instance_id,
+        metrics = [MetricDefinition('caches.size', 'gauge', 'size')]
+        expected_record = MetricRecord('caches.size', 'gauge', 537636864, self.plugin.instance_id,
                                        {'cache.name' : 'http_cache', 'nginx.version' : '1.11.10'})
 
         self.plugin._emit_cache_metrics(metrics, self.mock_sink)
@@ -870,8 +870,8 @@ class NginxCollectdTest(TestCase):
         self._validate_single_record(expected_record, self.mock_sink.captured_records[0])
 
     def test_cache_size_max(self):
-        metrics = [MetricDefinition('caches.size.max', 'counter', 'max_size')]
-        expected_record = MetricRecord('caches.size.max', 'counter', 536870912, self.plugin.instance_id,
+        metrics = [MetricDefinition('caches.size.max', 'gauge', 'max_size')]
+        expected_record = MetricRecord('caches.size.max', 'gauge', 536870912, self.plugin.instance_id,
                                        {'cache.name' : 'http_cache', 'nginx.version' : '1.11.10'})
 
         self.plugin._emit_cache_metrics(metrics, self.mock_sink)
