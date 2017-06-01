@@ -859,6 +859,41 @@ class NginxCollectdTest(TestCase):
         self.assertEquals(len(expected_records), len(self.mock_sink.captured_records))
         self._verify_records_captured(expected_records)
 
+
+    def test_upstreams_response_time(self):
+        metrics = [MetricDefinition('upstreams.response.time', 'gauge', 'response_time')]
+        expected_record_1 = MetricRecord('upstreams.response.time', 'gauge', 263, self.plugin.instance_id,
+                                         {'upstream.name' : 'trac-backend', 'upstream.peer.name' : '10.0.0.1:8080',
+                                          'nginx.version' : '1.11.10'})
+
+        expected_record_2 = MetricRecord('upstreams.response.time', 'gauge', 81, self.plugin.instance_id,
+                                         {'upstream.name' : 'hg-backend', 'upstream.peer.name' : '10.0.0.1:8088',
+                                          'nginx.version' : '1.11.10'})
+
+        expected_records = [expected_record_1, expected_record_2]
+
+        self.plugin._emit_upstreams_metrics(metrics, self.mock_sink)
+
+        self.assertEquals(len(expected_records), len(self.mock_sink.captured_records))
+        self._verify_records_captured(expected_records)
+
+    def test_upstreams_header_time(self):
+        metrics = [MetricDefinition('upstreams.header.time', 'gauge', 'header_time')]
+        expected_record_1 = MetricRecord('upstreams.header.time', 'gauge', 262, self.plugin.instance_id,
+                                         {'upstream.name' : 'trac-backend', 'upstream.peer.name' : '10.0.0.1:8080',
+                                          'nginx.version' : '1.11.10'})
+
+        expected_record_2 = MetricRecord('upstreams.header.time', 'gauge', 64, self.plugin.instance_id,
+                                         {'upstream.name' : 'hg-backend', 'upstream.peer.name' : '10.0.0.1:8088',
+                                          'nginx.version' : '1.11.10'})
+
+        expected_records = [expected_record_1, expected_record_2]
+
+        self.plugin._emit_upstreams_metrics(metrics, self.mock_sink)
+
+        self.assertEquals(len(expected_records), len(self.mock_sink.captured_records))
+        self._verify_records_captured(expected_records)
+
     def test_cache_size(self):
         metrics = [MetricDefinition('caches.size', 'gauge', 'size')]
         expected_record = MetricRecord('caches.size', 'gauge', 537636864, self.plugin.instance_id,
@@ -1187,6 +1222,30 @@ class NginxCollectdTest(TestCase):
                                          {'stream.upstream.name' : 'dns_udp_backends',
                                           'stream.upstream.peer.name' : '10.0.0.5:53', 'nginx.version' : '1.11.10'})
         expected_record_4 = MetricRecord('stream.upstreams.health.checks.unhealthy', 'counter', 2, instance_id,
+                                         {'stream.upstream.name' : 'dns_udp_backends',
+                                          'stream.upstream.peer.name' : '10.0.0.2:53', 'nginx.version' : '1.11.10'})
+
+        expected_records = [expected_record_1, expected_record_2, expected_record_3, expected_record_4]
+
+        self.plugin._emit_stream_upstreams_metrics(metrics, self.mock_sink)
+
+        self.assertEquals(len(expected_records), len(self.mock_sink.captured_records))
+        self._verify_records_captured(expected_records)
+
+    def test_stream_upstream_response_time(self):
+        instance_id = self.plugin.instance_id
+        metrics = [MetricDefinition('stream.upstreams.header.time', 'gauge', 'response_time')]
+        expected_record_1 = MetricRecord('stream.upstreams.header.time', 'gauge', 10, instance_id,
+                                         {'stream.upstream.name' : 'postgresql_backends',
+                                          'stream.upstream.peer.name' : '10.0.0.2:15432', 'nginx.version' : '1.11.10'})
+        expected_record_2 = MetricRecord('stream.upstreams.header.time', 'gauge', 7, instance_id,
+                                         {'stream.upstream.name' : 'postgresql_backends',
+                                          'stream.upstream.peer.name' : '10.0.0.2:15433', 'nginx.version' : '1.11.10'})
+
+        expected_record_3 = MetricRecord('stream.upstreams.header.time', 'gauge', 10, instance_id,
+                                         {'stream.upstream.name' : 'dns_udp_backends',
+                                          'stream.upstream.peer.name' : '10.0.0.5:53', 'nginx.version' : '1.11.10'})
+        expected_record_4 = MetricRecord('stream.upstreams.header.time', 'gauge', 10, instance_id,
                                          {'stream.upstream.name' : 'dns_udp_backends',
                                           'stream.upstream.peer.name' : '10.0.0.2:53', 'nginx.version' : '1.11.10'})
 

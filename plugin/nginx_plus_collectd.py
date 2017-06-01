@@ -169,7 +169,9 @@ UPSTREAM_METRICS = [
     MetricDefinition('upstreams.unavailable', 'counter', 'unavail'),
     MetricDefinition('upstreams.health.checks.checks', 'counter', 'health_checks.checks'),
     MetricDefinition('upstreams.health.checks.fails', 'counter', 'health_checks.fails'),
-    MetricDefinition('upstreams.health.checks.unhealthy', 'counter', 'health_checks.unhealthy')
+    MetricDefinition('upstreams.health.checks.unhealthy', 'counter', 'health_checks.unhealthy'),
+    MetricDefinition('upstreams.response.time', 'gauge', 'response_time'),
+    MetricDefinition('upstreams.header.time', 'gauge', 'header_time')
 ]
 
 CACHE_METRICS = [
@@ -200,7 +202,8 @@ STREAM_UPSTREAM_METRICS = [
     MetricDefinition('stream.upstreams.unavailable', 'counter', 'unavail'),
     MetricDefinition('stream.upstreams.health.checks.checks', 'counter', 'health_checks.checks'),
     MetricDefinition('stream.upstreams.health.checks.fails', 'counter', 'health_checks.fails'),
-    MetricDefinition('stream.upstreams.health.checks.unhealthy', 'counter', 'health_checks.unhealthy')
+    MetricDefinition('stream.upstreams.health.checks.unhealthy', 'counter', 'health_checks.unhealthy'),
+    MetricDefinition('stream.upstreams.response.time', 'gauge', 'response_time')
 ]
 
 class NginxPlusPlugin(object):
