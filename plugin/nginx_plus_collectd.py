@@ -118,12 +118,14 @@ STREAM_UPSTREAM = 'StreamUpstream'
 DEFAULT_CONNECTION_METRICS = [
     MetricDefinition('connections.accepted', 'counter', 'accepted'),
     MetricDefinition('connections.dropped', 'counter', 'dropped'),
-    MetricDefinition('connections.idle', 'counter', 'idle')
+    MetricDefinition('connections.idle', 'gauge', 'idle'),
+    MetricDefinition('connections.active', 'gauge', 'active')
 ]
 
 DEFAULT_SSL_METRICS = [
     MetricDefinition('ssl.handshakes.successful', 'counter', 'handshakes'),
-    MetricDefinition('ssl.handshakes.failed', 'counter', 'handshakes_failed')
+    MetricDefinition('ssl.handshakes.failed', 'counter', 'handshakes_failed'),
+    MetricDefinition('ssl.sessions.reuses', 'counter', 'session_reuses')
 ]
 
 DEFAULT_REQUESTS_METRICS = [
@@ -171,7 +173,10 @@ UPSTREAM_METRICS = [
     MetricDefinition('upstreams.health.checks.fails', 'counter', 'health_checks.fails'),
     MetricDefinition('upstreams.health.checks.unhealthy', 'counter', 'health_checks.unhealthy'),
     MetricDefinition('upstreams.response.time', 'gauge', 'response_time'),
-    MetricDefinition('upstreams.header.time', 'gauge', 'header_time')
+    MetricDefinition('upstreams.header.time', 'gauge', 'header_time'),
+    MetricDefinition('upstreams.downtime', 'counter', 'downtime'),
+    MetricDefinition('upstreams.bytes.received', 'counter', 'received'),
+    MetricDefinition('upstreams.bytes.sent', 'counter', 'sent')
 ]
 
 CACHE_METRICS = [
@@ -203,7 +208,10 @@ STREAM_UPSTREAM_METRICS = [
     MetricDefinition('stream.upstreams.health.checks.checks', 'counter', 'health_checks.checks'),
     MetricDefinition('stream.upstreams.health.checks.fails', 'counter', 'health_checks.fails'),
     MetricDefinition('stream.upstreams.health.checks.unhealthy', 'counter', 'health_checks.unhealthy'),
-    MetricDefinition('stream.upstreams.response.time', 'gauge', 'response_time')
+    MetricDefinition('stream.upstreams.response.time', 'gauge', 'response_time'),
+    MetricDefinition('stream.upstreams.downtime', 'counter', 'downtime'),
+    MetricDefinition('stream.upstreams.bytes.received', 'counter', 'received'),
+    MetricDefinition('stream.upstreams.bytes.sent', 'counter', 'sent')
 ]
 
 class NginxPlusPlugin(object):

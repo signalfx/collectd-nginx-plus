@@ -50,10 +50,15 @@ class MetricSinkTest(TestCase):
 
         raw_dimensions = {key_1 : value_1, key_2 : value_2}
 
-        expected_dimensions = '{}={},{}={}'.format(key_1.replace('.', '_'), value_1, key_2.replace('.', '_'), value_2)
-        actual_dimensions = self.sink._format_dimensions(raw_dimensions)
+        expected_pair_1 = '{}={}'.format(key_1.replace('.', '_'), value_1)
+        expected_pair_2 = '{}={}'.format(key_2.replace('.', '_'), value_2)
 
-        self.assertEquals(expected_dimensions, actual_dimensions)
+        actual_dimensions = self.sink._format_dimensions(raw_dimensions)
+        pairs = actual_dimensions.split(',')
+        
+        self.assertEquals(2, len(pairs))
+        self.assertTrue(expected_pair_1 in pairs)
+        self.assertTrue(expected_pair_2 in pairs)
 
 class CollectdValuesMock(object):
     def __init__(self):
