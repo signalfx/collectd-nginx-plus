@@ -17,7 +17,7 @@ from plugin.nginx_plus_collectd import NginxPlusPlugin, MetricRecord, MetricDefi
                                         CACHE_METRICS, CACHE, STREAM_SERVER_ZONE_METRICS, STREAM_SERVER_ZONE,\
                                         STREAM_UPSTREAM_METRICS, STREAM_UPSTREAM, STATUS_HOST, STATUS_PORT,\
                                         DEFAULT_SSL_METRICS, DEFAULT_REQUESTS_METRICS, DEBUG_LOG_LEVEL, log_handler,\
-                                        USERNAME, PASSWORD, DIMENSION, DIMENSIONS
+                                        USERNAME, PASSWORD, DIMENSION, DIMENSIONS, DEFAULT_CACHE_METRICS
 
 class NginxCollectdTest(TestCase):
     def setUp(self):
@@ -1147,29 +1147,6 @@ class NginxCollectdTest(TestCase):
         self.assertEquals(len(expected_records), len(self.mock_sink.captured_records))
         self._verify_records_captured(expected_records)
 
-    def test_stream_upstream_bytes_sent(self):
-        metrics = [MetricDefinition('stream.upstreams.bytes.sent', 'counter', 'sent')]
-        expected_record_1 = MetricRecord('stream.upstreams.bytes.sent', 'counter', 15667903, self.plugin.instance_id,
-                                         {'stream.upstream.name' : 'postgresql_backends',
-                                          'stream.upstream.peer.name' : '10.0.0.2:15432', 'nginx.version' : '1.11.10'})
-        expected_record_2 = MetricRecord('stream.upstreams.bytes.sent', 'counter', 15667903, self.plugin.instance_id,
-                                         {'stream.upstream.name' : 'postgresql_backends',
-                                          'stream.upstream.peer.name' : '10.0.0.2:15433', 'nginx.version' : '1.11.10'})
-
-        expected_record_3 = MetricRecord('stream.upstreams.bytes.sent', 'counter', 4538052, self.plugin.instance_id,
-                                         {'stream.upstream.name' : 'dns_udp_backends',
-                                          'stream.upstream.peer.name' : '10.0.0.5:53', 'nginx.version' : '1.11.10'})
-        expected_record_4 = MetricRecord('stream.upstreams.bytes.sent', 'counter', 2268972, self.plugin.instance_id,
-                                         {'stream.upstream.name' : 'dns_udp_backends',
-                                          'stream.upstream.peer.name' : '10.0.0.2:53', 'nginx.version' : '1.11.10'})
-
-        expected_records = [expected_record_1, expected_record_2, expected_record_3, expected_record_4]
-
-        self.plugin._emit_stream_upstreams_metrics(metrics, self.mock_sink)
-
-        self.assertEquals(len(expected_records), len(self.mock_sink.captured_records))
-        self._verify_records_captured(expected_records)
-
     def test_stream_upstream_fails(self):
         metrics = [MetricDefinition('stream.upstreams.fails', 'counter', 'fails')]
         expected_record_1 = MetricRecord('stream.upstreams.fails', 'counter', 0, self.plugin.instance_id,
@@ -1416,6 +1393,7 @@ class NginxCollectdTest(TestCase):
         metric_names.extend(self._extract_metric_names_from_definitions(DEFAULT_REQUESTS_METRICS))
         metric_names.extend(self._extract_metric_names_from_definitions(DEFAULT_SERVER_ZONE_METRICS))
         metric_names.extend(self._extract_metric_names_from_definitions(DEFAULT_UPSTREAM_METRICS))
+        metric_names.extend(self._extract_metric_names_from_definitions(DEFAULT_CACHE_METRICS))
 
         return metric_names
 

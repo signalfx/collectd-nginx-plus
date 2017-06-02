@@ -55,7 +55,6 @@ class MetricSinkTest(TestCase):
 
         actual_dimensions = self.sink._format_dimensions(raw_dimensions)
         pairs = actual_dimensions.split(',')
-        
         self.assertEquals(2, len(pairs))
         self.assertTrue(expected_pair_1 in pairs)
         self.assertTrue(expected_pair_2 in pairs)

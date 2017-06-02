@@ -95,7 +95,7 @@ class MetricSink(object):
         Formats a dictionary of key/value pairs as a comma-delimited list of key=value tokens.
         This was copied from docker-collectd-plugin.
         '''
-        return ','.join(['='.join((key.replace('.','_'), value)) for key, value in dimensions.iteritems()])
+        return ','.join(['='.join((key.replace('.', '_'), value)) for key, value in dimensions.iteritems()])
 
 # Server configueration flags
 STATUS_HOST = 'StatusHost'
@@ -134,24 +134,36 @@ DEFAULT_REQUESTS_METRICS = [
 ]
 
 DEFAULT_SERVER_ZONE_METRICS = [
-    MetricDefinition('server.zone.requests', 'counter', 'requests')
+    MetricDefinition('server.zone.requests', 'counter', 'requests'),
+    MetricDefinition('server.zone.responses.4xx', 'counter', 'responses.4xx'),
+    MetricDefinition('server.zone.responses.5xx', 'counter', 'responses.5xx'),
+    MetricDefinition('server.zone.responses.total', 'counter', 'responses.total'),
+    MetricDefinition('server.zone.bytes.received', 'counter', 'received'),
+    MetricDefinition('server.zone.bytes.sent', 'counter', 'sent')
 ]
 
 DEFAULT_UPSTREAM_METRICS = [
-    MetricDefinition('upstreams.requests', 'counter', 'requests')
+    MetricDefinition('upstreams.requests', 'counter', 'requests'),
+    MetricDefinition('upstreams.responses.4xx', 'counter', 'responses.4xx'),
+    MetricDefinition('upstreams.responses.5xx', 'counter', 'responses.5xx'),
+    MetricDefinition('upstreams.responses.total', 'counter', 'responses.total'),
+    MetricDefinition('upstreams.downtime', 'counter', 'downtime'),
+    MetricDefinition('upstreams.response.time', 'gauge', 'response_time'),
+    MetricDefinition('upstreams.bytes.received', 'counter', 'received'),
+    MetricDefinition('upstreams.bytes.sent', 'counter', 'sent')
+]
+
+DEFAULT_CACHE_METRICS = [
+    MetricDefinition('caches.size', 'gauge', 'size'),
+    MetricDefinition('caches.size.max', 'gauge', 'max_size')
 ]
 
 SERVER_ZONE_METRICS = [
     MetricDefinition('server.zone.processing', 'counter', 'processing'),
     MetricDefinition('server.zone.discarded', 'counter', 'discarded'),
-    MetricDefinition('server.zone.responses.total', 'counter', 'responses.total'),
     MetricDefinition('server.zone.responses.1xx', 'counter', 'responses.1xx'),
     MetricDefinition('server.zone.responses.2xx', 'counter', 'responses.2xx'),
-    MetricDefinition('server.zone.responses.3xx', 'counter', 'responses.3xx'),
-    MetricDefinition('server.zone.responses.4xx', 'counter', 'responses.4xx'),
-    MetricDefinition('server.zone.responses.5xx', 'counter', 'responses.5xx'),
-    MetricDefinition('server.zone.bytes.received', 'counter', 'received'),
-    MetricDefinition('server.zone.bytes.sent', 'counter', 'sent')
+    MetricDefinition('server.zone.responses.3xx', 'counter', 'responses.3xx')
 ]
 
 MEMORY_ZONE_METRICS = [
@@ -161,27 +173,18 @@ MEMORY_ZONE_METRICS = [
 
 UPSTREAM_METRICS = [
     MetricDefinition('upstreams.active', 'counter', 'active'),
-    MetricDefinition('upstreams.responses.total', 'counter', 'responses.total'),
     MetricDefinition('upstreams.responses.1xx', 'counter', 'responses.1xx'),
     MetricDefinition('upstreams.responses.2xx', 'counter', 'responses.2xx'),
     MetricDefinition('upstreams.responses.3xx', 'counter', 'responses.3xx'),
-    MetricDefinition('upstreams.responses.4xx', 'counter', 'responses.4xx'),
-    MetricDefinition('upstreams.responses.5xx', 'counter', 'responses.5xx'),
     MetricDefinition('upstreams.fails', 'counter', 'fails'),
     MetricDefinition('upstreams.unavailable', 'counter', 'unavail'),
     MetricDefinition('upstreams.health.checks.checks', 'counter', 'health_checks.checks'),
     MetricDefinition('upstreams.health.checks.fails', 'counter', 'health_checks.fails'),
     MetricDefinition('upstreams.health.checks.unhealthy', 'counter', 'health_checks.unhealthy'),
-    MetricDefinition('upstreams.response.time', 'gauge', 'response_time'),
-    MetricDefinition('upstreams.header.time', 'gauge', 'header_time'),
-    MetricDefinition('upstreams.downtime', 'counter', 'downtime'),
-    MetricDefinition('upstreams.bytes.received', 'counter', 'received'),
-    MetricDefinition('upstreams.bytes.sent', 'counter', 'sent')
+    MetricDefinition('upstreams.header.time', 'gauge', 'header_time')
 ]
 
 CACHE_METRICS = [
-    MetricDefinition('caches.size', 'gauge', 'size'),
-    MetricDefinition('caches.size.max', 'gauge', 'max_size'),
     MetricDefinition('caches.hits', 'counter', 'hit.responses'),
     MetricDefinition('caches.misses', 'counter', 'miss.responses')
 ]
@@ -293,6 +296,7 @@ class NginxPlusPlugin(object):
         self.emitters.append(MetricEmitter(self._emit_requests_metrics, DEFAULT_REQUESTS_METRICS))
         self.emitters.append(MetricEmitter(self._emit_server_zone_metrics, DEFAULT_SERVER_ZONE_METRICS))
         self.emitters.append(MetricEmitter(self._emit_upstreams_metrics, DEFAULT_UPSTREAM_METRICS))
+        self.emitters.append(MetricEmitter(self._emit_upstreams_metrics, DEFAULT_CACHE_METRICS))
 
         self.sink = MetricSink()
         self.nginx_agent = NginxStatusAgent(status_host, status_port, username, password)
