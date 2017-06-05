@@ -250,7 +250,7 @@ STREAM_UPSTREAM_PEER_METRICS = [
 ]
 
 PROCESSES_METRICS = [
-    MetricDefinition('processes.respawned', 'counter', 'connections'),
+    MetricDefinition('processes.respawned', 'counter', 'respawned'),
 ]
 
 class NginxPlusPlugin(object):
