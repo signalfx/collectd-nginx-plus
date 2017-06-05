@@ -113,6 +113,7 @@ UPSTREAM = 'Upstream'
 CACHE = 'Cache'
 STREAM_SERVER_ZONE = 'StreamServerZone'
 STREAM_UPSTREAM = 'StreamUpstream'
+PROCESSES = 'Processes'
 
 # Metric groups
 DEFAULT_CONNECTION_METRICS = [
@@ -171,7 +172,14 @@ MEMORY_ZONE_METRICS = [
     MetricDefinition('zone.pages.free', 'counter', 'pages.free')
 ]
 
+# Metrics taken from the top-level upstream object (the peers container)
 UPSTREAM_METRICS = [
+    MetricDefinition('upstreams.keepalive', 'gauge', 'keepalive'),
+    MetricDefinition('upstreams.zombies', 'gauge', 'zombies')
+]
+
+# Metrics taken from each upstream peer
+UPSTREAM_PEER_METRICS = [
     MetricDefinition('upstreams.active', 'counter', 'active'),
     MetricDefinition('upstreams.responses.1xx', 'counter', 'responses.1xx'),
     MetricDefinition('upstreams.responses.2xx', 'counter', 'responses.2xx'),
@@ -185,8 +193,26 @@ UPSTREAM_METRICS = [
 ]
 
 CACHE_METRICS = [
-    MetricDefinition('caches.hits', 'counter', 'hit.responses'),
-    MetricDefinition('caches.misses', 'counter', 'miss.responses')
+    MetricDefinition('caches.hit.responses', 'counter', 'hit.responses'),
+    MetricDefinition('caches.miss.responses', 'counter', 'miss.responses'),
+    MetricDefinition('caches.stale.responses', 'counter', 'stale.responses'),
+    MetricDefinition('caches.updating.responses', 'counter', 'updating.responses'),
+    MetricDefinition('caches.revalidated.responses', 'counter', 'revalidated.responses'),
+    MetricDefinition('caches.expired.responses', 'counter', 'expired.responses'),
+    MetricDefinition('caches.bypass.responses', 'counter', 'bypass.responses'),
+    MetricDefinition('caches.hit.bytes', 'counter', 'hit.bytes'),
+    MetricDefinition('caches.miss.bytes', 'counter', 'miss.bytes'),
+    MetricDefinition('caches.stale.bytes', 'counter', 'stale.bytes'),
+    MetricDefinition('caches.updating.bytes', 'counter', 'updating.bytes'),
+    MetricDefinition('caches.revalidated.bytes', 'counter', 'revalidated.bytes'),
+    MetricDefinition('caches.expired.bytes', 'counter', 'expired.bytes'),
+    MetricDefinition('caches.bypass.bytes', 'counter', 'bypass.bytes'),
+    MetricDefinition('caches.miss.responses.written', 'counter', 'miss.responses_written'),
+    MetricDefinition('caches.miss.bytes.written', 'counter', 'miss.bytes_written'),
+    MetricDefinition('caches.expired.responses.written', 'counter', 'expired.responses_written'),
+    MetricDefinition('caches.expired.bytes.written', 'counter', 'expired.bytes_written'),
+    MetricDefinition('caches.bypass.responses.written', 'counter', 'bypass.responses_written'),
+    MetricDefinition('caches.bypass.bytes.written', 'counter', 'miss.bytes_written')
 ]
 
 STREAM_SERVER_ZONE_METRICS = [
@@ -200,7 +226,13 @@ STREAM_SERVER_ZONE_METRICS = [
     MetricDefinition('stream.server.zone.discarded', 'counter', 'discarded')
 ]
 
+# Metrics taken from each strea-upstream object (the peers container)
 STREAM_UPSTREAM_METRICS = [
+    MetricDefinition('stream.upstreams.zombies', 'gauge', 'zombies')
+]
+
+# Metrics take from each stream-upstream peer
+STREAM_UPSTREAM_PEER_METRICS = [
     MetricDefinition('stream.upstreams.connections', 'counter', 'connections'),
     MetricDefinition('stream.upstreams.active', 'counter', 'active'),
     MetricDefinition('stream.upstreams.connections.max', 'counter', 'max_conns'),
@@ -215,6 +247,10 @@ STREAM_UPSTREAM_METRICS = [
     MetricDefinition('stream.upstreams.downtime', 'counter', 'downtime'),
     MetricDefinition('stream.upstreams.bytes.received', 'counter', 'received'),
     MetricDefinition('stream.upstreams.bytes.sent', 'counter', 'sent')
+]
+
+PROCESSES_METRICS = [
+    MetricDefinition('processes.respawned', 'counter', 'connections'),
 ]
 
 class NginxPlusPlugin(object):
@@ -274,9 +310,13 @@ class NginxPlusPlugin(object):
             elif self._check_bool_config_enabled(node, CACHE):
                 self._log_emitter_group_enabled(CACHE)
                 self.emitters.append(MetricEmitter(self._emit_cache_metrics, CACHE_METRICS))
+            elif self._check_bool_config_enabled(node, PROCESSES):
+                self._log_emitter_group_enabled(PROCESSES)
+                self.emitters.append(MetricEmitter(self._emit_cache_metrics, PROCESSES_METRICS))
             elif self._check_bool_config_enabled(node, UPSTREAM):
                 self._log_emitter_group_enabled(UPSTREAM)
                 self.emitters.append(MetricEmitter(self._emit_upstreams_metrics, UPSTREAM_METRICS))
+                self.emitters.append(MetricEmitter(self._emit_upstreams_peer_metrics, UPSTREAM_PEER_METRICS))
             elif self._check_bool_config_enabled(node, MEMORY_ZONE):
                 self._log_emitter_group_enabled(MEMORY_ZONE)
                 self.emitters.append(MetricEmitter(self._emit_memory_zone_metrics, MEMORY_ZONE_METRICS))
@@ -286,6 +326,8 @@ class NginxPlusPlugin(object):
             elif self._check_bool_config_enabled(node, STREAM_UPSTREAM):
                 self._log_emitter_group_enabled(STREAM_UPSTREAM)
                 self.emitters.append(MetricEmitter(self._emit_stream_upstreams_metrics, STREAM_UPSTREAM_METRICS))
+                self.emitters.append(MetricEmitter(self._emit_stream_upstreams_peer_metrics,\
+                                                   STREAM_UPSTREAM_PEER_METRICS))
             elif self._check_bool_config_enabled(node, STREAM_SERVER_ZONE):
                 self._log_emitter_group_enabled(STREAM_SERVER_ZONE)
                 self.emitters.append(MetricEmitter(self._emit_stream_server_zone_metrics, STREAM_SERVER_ZONE_METRICS))
@@ -295,8 +337,8 @@ class NginxPlusPlugin(object):
         self.emitters.append(MetricEmitter(self._emit_ssl_metrics, DEFAULT_SSL_METRICS))
         self.emitters.append(MetricEmitter(self._emit_requests_metrics, DEFAULT_REQUESTS_METRICS))
         self.emitters.append(MetricEmitter(self._emit_server_zone_metrics, DEFAULT_SERVER_ZONE_METRICS))
-        self.emitters.append(MetricEmitter(self._emit_upstreams_metrics, DEFAULT_UPSTREAM_METRICS))
-        self.emitters.append(MetricEmitter(self._emit_upstreams_metrics, DEFAULT_CACHE_METRICS))
+        self.emitters.append(MetricEmitter(self._emit_upstreams_peer_metrics, DEFAULT_UPSTREAM_METRICS))
+        self.emitters.append(MetricEmitter(self._emit_cache_metrics, DEFAULT_CACHE_METRICS))
 
         self.sink = MetricSink()
         self.nginx_agent = NginxStatusAgent(status_host, status_port, username, password)
@@ -348,6 +390,15 @@ class NginxPlusPlugin(object):
         status_json = self.nginx_agent.get_requests()
         self._fetch_and_emit_metrics(status_json, metrics, sink)
 
+    def _emit_processes_metrics(self, metrics, sink):
+        '''
+        Extract and emit the processes metrics.
+        '''
+        LOGGER.debug('Emitting processes metrics, instance: %s', self.instance_id)
+
+        status_json = self.nginx_agent.get_processes()
+        self._fetch_and_emit_metrics(status_json, metrics, sink)
+
     def _emit_server_zone_metrics(self, metrics, sink):
         '''
         Extract and emit the server-zone metrics.
@@ -362,6 +413,15 @@ class NginxPlusPlugin(object):
         Extract and emit the upstreams metrics.
         '''
         LOGGER.debug('Emitting upstreams metrics, instance: %s', self.instance_id)
+
+        upstreams_obj = self.nginx_agent.get_upstreams()
+        self._build_container_keyed_metrics(upstreams_obj, 'upstream.name', metrics, sink)
+
+    def _emit_upstreams_peer_metrics(self, metrics, sink):
+        '''
+        Extract and emit the upstreams peer metrics.
+        '''
+        LOGGER.debug('Emitting upstreams peer metrics, instance: %s', self.instance_id)
 
         upstreams_obj = self.nginx_agent.get_upstreams()
         self._build_container_keyed_peer_metrics(upstreams_obj, 'upstream.name', 'upstream.peer.name', metrics, sink)
@@ -380,6 +440,15 @@ class NginxPlusPlugin(object):
         Extract and emit the stream-upstream metrics.
         '''
         LOGGER.debug('Emitting stream-upstreams metrics, instance: %s', self.instance_id)
+
+        upstreams_obj = self.nginx_agent.get_stream_upstreams()
+        self._build_container_keyed_metrics(upstreams_obj, 'stream.upstream.name', metrics, sink)
+
+    def _emit_stream_upstreams_peer_metrics(self, metrics, sink):
+        '''
+        Extract and emit the stream-upstream peer metrics.
+        '''
+        LOGGER.debug('Emitting stream-upstreams peer metrics, instance: %s', self.instance_id)
 
         upstreams_obj = self.nginx_agent.get_stream_upstreams()
         self._build_container_keyed_peer_metrics(upstreams_obj, 'stream.upstream.name', 'stream.upstream.peer.name',\
@@ -623,6 +692,7 @@ class NginxStatusAgent(object):
         self.requests_url = '{}/requests'.format(self.base_status_url)
         self.ssl_url = '{}/ssl'.format(self.base_status_url)
         self.slabs_url = '{}/slabs'.format(self.base_status_url)
+        self.processes_url = '{}/processes'.format(self.base_status_url)
 
     def get_status(self):
         '''
@@ -697,6 +767,12 @@ class NginxStatusAgent(object):
         Fetch the stream server zones status summary.
         '''
         return self._send_get(self.stream_server_zones_url)
+
+    def get_processes(self):
+        '''
+        Fetch the processes status summary.
+        '''
+        return self._send_get(self.processes_url)
 
     def _send_get(self, url):
         '''

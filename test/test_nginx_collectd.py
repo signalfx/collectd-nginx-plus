@@ -13,11 +13,12 @@ sys.modules['collectd'] = Mock()
 from plugin.nginx_plus_collectd import NginxPlusPlugin, MetricRecord, MetricDefinition,\
                                         DEFAULT_CONNECTION_METRICS, DEFAULT_SERVER_ZONE_METRICS,\
                                         DEFAULT_UPSTREAM_METRICS, SERVER_ZONE_METRICS, SERVER_ZONE,\
-                                        MEMORY_ZONE_METRICS, MEMORY_ZONE, UPSTREAM_METRICS, UPSTREAM,\
+                                        MEMORY_ZONE_METRICS, MEMORY_ZONE, UPSTREAM_PEER_METRICS, UPSTREAM,\
                                         CACHE_METRICS, CACHE, STREAM_SERVER_ZONE_METRICS, STREAM_SERVER_ZONE,\
-                                        STREAM_UPSTREAM_METRICS, STREAM_UPSTREAM, STATUS_HOST, STATUS_PORT,\
+                                        STREAM_UPSTREAM_PEER_METRICS, STREAM_UPSTREAM, STATUS_HOST, STATUS_PORT,\
                                         DEFAULT_SSL_METRICS, DEFAULT_REQUESTS_METRICS, DEBUG_LOG_LEVEL, log_handler,\
-                                        USERNAME, PASSWORD, DIMENSION, DIMENSIONS, DEFAULT_CACHE_METRICS
+                                        USERNAME, PASSWORD, DIMENSION, DIMENSIONS, DEFAULT_CACHE_METRICS,\
+                                        PROCESSES_METRICS, PROCESSES, UPSTREAM_METRICS, STREAM_UPSTREAM_METRICS
 
 class NginxCollectdTest(TestCase):
     def setUp(self):
@@ -92,6 +93,7 @@ class NginxCollectdTest(TestCase):
     def test_configure_upstream_emitters(self):
         expected_metric_names = self._get_default_metric_names()
         expected_metric_names.extend(self._extract_metric_names_from_definitions(UPSTREAM_METRICS))
+        expected_metric_names.extend(self._extract_metric_names_from_definitions(UPSTREAM_PEER_METRICS))
 
         mock_config = Mock()
         mock_config_child = Mock()
@@ -143,10 +145,28 @@ class NginxCollectdTest(TestCase):
     def test_configure_stream_upstream_emitters(self):
         expected_metric_names = self._get_default_metric_names()
         expected_metric_names.extend(self._extract_metric_names_from_definitions(STREAM_UPSTREAM_METRICS))
+        expected_metric_names.extend(self._extract_metric_names_from_definitions(STREAM_UPSTREAM_PEER_METRICS))
 
         mock_config = Mock()
         mock_config_child = Mock()
         mock_config_child.key = STREAM_UPSTREAM
+        mock_config_child.values = ['true']
+
+        mock_config.children = [mock_config_child]
+
+        self.plugin.configure(mock_config)
+        actual_metric_names = self._get_metrics_names_from_plugin()
+
+        self.assertEquals(len(expected_metric_names), len(actual_metric_names))
+        self.assertItemsEqual(expected_metric_names, actual_metric_names)
+
+    def test_configure_processes_emitters(self):
+        expected_metric_names = self._get_default_metric_names()
+        expected_metric_names.extend(self._extract_metric_names_from_definitions(PROCESSES_METRICS))
+
+        mock_config = Mock()
+        mock_config_child = Mock()
+        mock_config_child.key = PROCESSES
         mock_config_child.values = ['true']
 
         mock_config.children = [mock_config_child]
@@ -588,7 +608,7 @@ class NginxCollectdTest(TestCase):
 
         expected_records = [expected_record_1, expected_record_2, expected_record_3, expected_record_4]
 
-        self.plugin._emit_upstreams_metrics(metrics, self.mock_sink)
+        self.plugin._emit_upstreams_peer_metrics(metrics, self.mock_sink)
 
         self.assertEquals(len(expected_records), len(self.mock_sink.captured_records))
         self._verify_records_captured(expected_records)
@@ -611,7 +631,7 @@ class NginxCollectdTest(TestCase):
 
         expected_records = [expected_record_1, expected_record_2, expected_record_3, expected_record_4]
 
-        self.plugin._emit_upstreams_metrics(metrics, self.mock_sink)
+        self.plugin._emit_upstreams_peer_metrics(metrics, self.mock_sink)
 
         self.assertEquals(len(expected_records), len(self.mock_sink.captured_records))
         self._verify_records_captured(expected_records)
@@ -634,7 +654,7 @@ class NginxCollectdTest(TestCase):
 
         expected_records = [expected_record_1, expected_record_2, expected_record_3, expected_record_4]
 
-        self.plugin._emit_upstreams_metrics(metrics, self.mock_sink)
+        self.plugin._emit_upstreams_peer_metrics(metrics, self.mock_sink)
 
         self.assertEquals(len(expected_records), len(self.mock_sink.captured_records))
         self._verify_records_captured(expected_records)
@@ -657,7 +677,7 @@ class NginxCollectdTest(TestCase):
 
         expected_records = [expected_record_1, expected_record_2, expected_record_3, expected_record_4]
 
-        self.plugin._emit_upstreams_metrics(metrics, self.mock_sink)
+        self.plugin._emit_upstreams_peer_metrics(metrics, self.mock_sink)
 
         self.assertEquals(len(expected_records), len(self.mock_sink.captured_records))
         self._verify_records_captured(expected_records)
@@ -680,7 +700,7 @@ class NginxCollectdTest(TestCase):
 
         expected_records = [expected_record_1, expected_record_2, expected_record_3, expected_record_4]
 
-        self.plugin._emit_upstreams_metrics(metrics, self.mock_sink)
+        self.plugin._emit_upstreams_peer_metrics(metrics, self.mock_sink)
 
         self.assertEquals(len(expected_records), len(self.mock_sink.captured_records))
         self._verify_records_captured(expected_records)
@@ -703,7 +723,7 @@ class NginxCollectdTest(TestCase):
 
         expected_records = [expected_record_1, expected_record_2, expected_record_3, expected_record_4]
 
-        self.plugin._emit_upstreams_metrics(metrics, self.mock_sink)
+        self.plugin._emit_upstreams_peer_metrics(metrics, self.mock_sink)
 
         self.assertEquals(len(expected_records), len(self.mock_sink.captured_records))
         self._verify_records_captured(expected_records)
@@ -726,7 +746,7 @@ class NginxCollectdTest(TestCase):
 
         expected_records = [expected_record_1, expected_record_2, expected_record_3, expected_record_4]
 
-        self.plugin._emit_upstreams_metrics(metrics, self.mock_sink)
+        self.plugin._emit_upstreams_peer_metrics(metrics, self.mock_sink)
 
         self.assertEquals(len(expected_records), len(self.mock_sink.captured_records))
         self._verify_records_captured(expected_records)
@@ -749,7 +769,7 @@ class NginxCollectdTest(TestCase):
 
         expected_records = [expected_record_1, expected_record_2, expected_record_3, expected_record_4]
 
-        self.plugin._emit_upstreams_metrics(metrics, self.mock_sink)
+        self.plugin._emit_upstreams_peer_metrics(metrics, self.mock_sink)
 
         self.assertEquals(len(expected_records), len(self.mock_sink.captured_records))
         self._verify_records_captured(expected_records)
@@ -772,7 +792,7 @@ class NginxCollectdTest(TestCase):
 
         expected_records = [expected_record_1, expected_record_2, expected_record_3, expected_record_4]
 
-        self.plugin._emit_upstreams_metrics(metrics, self.mock_sink)
+        self.plugin._emit_upstreams_peer_metrics(metrics, self.mock_sink)
 
         self.assertEquals(len(expected_records), len(self.mock_sink.captured_records))
         self._verify_records_captured(expected_records)
@@ -795,7 +815,7 @@ class NginxCollectdTest(TestCase):
 
         expected_records = [expected_record_1, expected_record_2, expected_record_3, expected_record_4]
 
-        self.plugin._emit_upstreams_metrics(metrics, self.mock_sink)
+        self.plugin._emit_upstreams_peer_metrics(metrics, self.mock_sink)
 
         self.assertEquals(len(expected_records), len(self.mock_sink.captured_records))
         self._verify_records_captured(expected_records)
@@ -818,7 +838,7 @@ class NginxCollectdTest(TestCase):
 
         expected_records = [expected_record_1, expected_record_2, expected_record_3, expected_record_4]
 
-        self.plugin._emit_upstreams_metrics(metrics, self.mock_sink)
+        self.plugin._emit_upstreams_peer_metrics(metrics, self.mock_sink)
 
         self.assertEquals(len(expected_records), len(self.mock_sink.captured_records))
         self._verify_records_captured(expected_records)
@@ -841,7 +861,7 @@ class NginxCollectdTest(TestCase):
 
         expected_records = [expected_record_1, expected_record_2, expected_record_3, expected_record_4]
 
-        self.plugin._emit_upstreams_metrics(metrics, self.mock_sink)
+        self.plugin._emit_upstreams_peer_metrics(metrics, self.mock_sink)
 
         self.assertEquals(len(expected_records), len(self.mock_sink.captured_records))
         self._verify_records_captured(expected_records)
@@ -864,7 +884,7 @@ class NginxCollectdTest(TestCase):
 
         expected_records = [expected_record_1, expected_record_2, expected_record_3, expected_record_4]
 
-        self.plugin._emit_upstreams_metrics(metrics, self.mock_sink)
+        self.plugin._emit_upstreams_peer_metrics(metrics, self.mock_sink)
 
         self.assertEquals(len(expected_records), len(self.mock_sink.captured_records))
         self._verify_records_captured(expected_records)
@@ -882,7 +902,7 @@ class NginxCollectdTest(TestCase):
 
         expected_records = [expected_record_1, expected_record_2]
 
-        self.plugin._emit_upstreams_metrics(metrics, self.mock_sink)
+        self.plugin._emit_upstreams_peer_metrics(metrics, self.mock_sink)
 
         self.assertEquals(len(expected_records), len(self.mock_sink.captured_records))
         self._verify_records_captured(expected_records)
@@ -899,7 +919,7 @@ class NginxCollectdTest(TestCase):
 
         expected_records = [expected_record_1, expected_record_2]
 
-        self.plugin._emit_upstreams_metrics(metrics, self.mock_sink)
+        self.plugin._emit_upstreams_peer_metrics(metrics, self.mock_sink)
 
         self.assertEquals(len(expected_records), len(self.mock_sink.captured_records))
         self._verify_records_captured(expected_records)
@@ -922,7 +942,7 @@ class NginxCollectdTest(TestCase):
 
         expected_records = [expected_record_1, expected_record_2, expected_record_3, expected_record_4]
 
-        self.plugin._emit_upstreams_metrics(metrics, self.mock_sink)
+        self.plugin._emit_upstreams_peer_metrics(metrics, self.mock_sink)
 
         self.assertEquals(len(expected_records), len(self.mock_sink.captured_records))
         self._verify_records_captured(expected_records)
@@ -945,7 +965,7 @@ class NginxCollectdTest(TestCase):
 
         expected_records = [expected_record_1, expected_record_2, expected_record_3, expected_record_4]
 
-        self.plugin._emit_upstreams_metrics(metrics, self.mock_sink)
+        self.plugin._emit_upstreams_peer_metrics(metrics, self.mock_sink)
 
         self.assertEquals(len(expected_records), len(self.mock_sink.captured_records))
         self._verify_records_captured(expected_records)
@@ -967,6 +987,34 @@ class NginxCollectdTest(TestCase):
                                           'nginx.version' : '1.11.10'})
 
         expected_records = [expected_record_1, expected_record_2, expected_record_3, expected_record_4]
+
+        self.plugin._emit_upstreams_peer_metrics(metrics, self.mock_sink)
+
+        self.assertEquals(len(expected_records), len(self.mock_sink.captured_records))
+        self._verify_records_captured(expected_records)
+
+    def test_upstreams_keepalive(self):
+        metrics = [MetricDefinition('upstreams.keepalive', 'gauge', 'keepalive')]
+        expected_record_1 = MetricRecord('upstreams.keepalive', 'gauge', 0, self.plugin.instance_id,
+                                         {'upstream.name' : 'trac-backend', 'nginx.version' : '1.11.10'})
+        expected_record_2 = MetricRecord('upstreams.keepalive', 'gauge', 0, self.plugin.instance_id,
+                                         {'upstream.name' : 'hg-backend', 'nginx.version' : '1.11.10'})
+
+        expected_records = [expected_record_1, expected_record_2]
+
+        self.plugin._emit_upstreams_metrics(metrics, self.mock_sink)
+
+        self.assertEquals(len(expected_records), len(self.mock_sink.captured_records))
+        self._verify_records_captured(expected_records)
+
+    def test_upstreams_zombies(self):
+        metrics = [MetricDefinition('upstreams.zombies', 'gauge', 'zombies')]
+        expected_record_1 = MetricRecord('upstreams.zombies', 'gauge', 0, self.plugin.instance_id,
+                                         {'upstream.name' : 'trac-backend', 'nginx.version' : '1.11.10'})
+        expected_record_2 = MetricRecord('upstreams.zombies', 'gauge', 0, self.plugin.instance_id,
+                                         {'upstream.name' : 'hg-backend', 'nginx.version' : '1.11.10'})
+
+        expected_records = [expected_record_1, expected_record_2]
 
         self.plugin._emit_upstreams_metrics(metrics, self.mock_sink)
 
@@ -993,9 +1041,9 @@ class NginxCollectdTest(TestCase):
         self.assertEquals(1, len(self.mock_sink.captured_records))
         self._validate_single_record(expected_record, self.mock_sink.captured_records[0])
 
-    def test_cache_hits(self):
-        metrics = [MetricDefinition('caches.hits', 'counter', 'hit.responses')]
-        expected_record = MetricRecord('caches.hits', 'counter', 1154249, self.plugin.instance_id,
+    def test_cache_hits_responses(self):
+        metrics = [MetricDefinition('caches.hit.responses', 'counter', 'hit.responses')]
+        expected_record = MetricRecord('caches.hit.responses', 'counter', 1154249, self.plugin.instance_id,
                                        {'cache.name' : 'http_cache', 'nginx.version' : '1.11.10'})
 
         self.plugin._emit_cache_metrics(metrics, self.mock_sink)
@@ -1003,9 +1051,189 @@ class NginxCollectdTest(TestCase):
         self.assertEquals(1, len(self.mock_sink.captured_records))
         self._validate_single_record(expected_record, self.mock_sink.captured_records[0])
 
-    def test_cache_misses(self):
-        metrics = [MetricDefinition('caches.misses', 'counter', 'miss.responses')]
-        expected_record = MetricRecord('caches.misses', 'counter', 4404051, self.plugin.instance_id,
+    def test_cache_misses_responses(self):
+        metrics = [MetricDefinition('caches.miss.responses', 'counter', 'miss.responses')]
+        expected_record = MetricRecord('caches.miss.responses', 'counter', 4404051, self.plugin.instance_id,
+                                       {'cache.name' : 'http_cache', 'nginx.version' : '1.11.10'})
+
+        self.plugin._emit_cache_metrics(metrics, self.mock_sink)
+
+        self.assertEquals(1, len(self.mock_sink.captured_records))
+        self._validate_single_record(expected_record, self.mock_sink.captured_records[0])
+
+    def test_cache_stale_responses(self):
+        metrics = [MetricDefinition('caches.stale.responses', 'counter', 'stale.responses')]
+        expected_record = MetricRecord('caches.stale.responses', 'counter', 0, self.plugin.instance_id,
+                                       {'cache.name' : 'http_cache', 'nginx.version' : '1.11.10'})
+
+        self.plugin._emit_cache_metrics(metrics, self.mock_sink)
+
+        self.assertEquals(1, len(self.mock_sink.captured_records))
+        self._validate_single_record(expected_record, self.mock_sink.captured_records[0])
+
+    def test_cache_revalidated_responses(self):
+        metrics = [MetricDefinition('caches.revalidated.responses', 'counter', 'revalidated.responses')]
+        expected_record = MetricRecord('caches.revalidated.responses', 'counter', 0, self.plugin.instance_id,
+                                       {'cache.name' : 'http_cache', 'nginx.version' : '1.11.10'})
+
+        self.plugin._emit_cache_metrics(metrics, self.mock_sink)
+
+        self.assertEquals(1, len(self.mock_sink.captured_records))
+        self._validate_single_record(expected_record, self.mock_sink.captured_records[0])
+
+    def test_cache_expired_responses(self):
+        metrics = [MetricDefinition('caches.expired.responses', 'counter', 'expired.responses')]
+        expected_record = MetricRecord('caches.expired.responses', 'counter', 386119, self.plugin.instance_id,
+                                       {'cache.name' : 'http_cache', 'nginx.version' : '1.11.10'})
+
+        self.plugin._emit_cache_metrics(metrics, self.mock_sink)
+
+        self.assertEquals(1, len(self.mock_sink.captured_records))
+        self._validate_single_record(expected_record, self.mock_sink.captured_records[0])
+
+    def test_cache_bypass_responses(self):
+        metrics = [MetricDefinition('caches.bypass.responses', 'counter', 'bypass.responses')]
+        expected_record = MetricRecord('caches.bypass.responses', 'counter', 793747, self.plugin.instance_id,
+                                       {'cache.name' : 'http_cache', 'nginx.version' : '1.11.10'})
+
+        self.plugin._emit_cache_metrics(metrics, self.mock_sink)
+
+        self.assertEquals(1, len(self.mock_sink.captured_records))
+        self._validate_single_record(expected_record, self.mock_sink.captured_records[0])
+
+    def test_cache_updating_responses(self):
+        metrics = [MetricDefinition('caches.updating.responses', 'counter', 'updating.responses')]
+        expected_record = MetricRecord('caches.updating.responses', 'counter', 0, self.plugin.instance_id,
+                                       {'cache.name' : 'http_cache', 'nginx.version' : '1.11.10'})
+
+        self.plugin._emit_cache_metrics(metrics, self.mock_sink)
+
+        self.assertEquals(1, len(self.mock_sink.captured_records))
+        self._validate_single_record(expected_record, self.mock_sink.captured_records[0])
+
+    def test_cache_hits_bytes(self):
+        metrics = [MetricDefinition('caches.hit.bytes', 'counter', 'hit.bytes')]
+        expected_record = MetricRecord('caches.hit.bytes', 'counter', 15601519097, self.plugin.instance_id,
+                                       {'cache.name' : 'http_cache', 'nginx.version' : '1.11.10'})
+
+        self.plugin._emit_cache_metrics(metrics, self.mock_sink)
+
+        self.assertEquals(1, len(self.mock_sink.captured_records))
+        self._validate_single_record(expected_record, self.mock_sink.captured_records[0])
+
+    def test_cache_misses_bytes(self):
+        metrics = [MetricDefinition('caches.miss.bytes', 'counter', 'miss.bytes')]
+        expected_record = MetricRecord('caches.miss.bytes', 'counter', 145979697109, self.plugin.instance_id,
+                                       {'cache.name' : 'http_cache', 'nginx.version' : '1.11.10'})
+
+        self.plugin._emit_cache_metrics(metrics, self.mock_sink)
+
+        self.assertEquals(1, len(self.mock_sink.captured_records))
+        self._validate_single_record(expected_record, self.mock_sink.captured_records[0])
+
+    def test_cache_stale_bytes(self):
+        metrics = [MetricDefinition('caches.stale.bytes', 'counter', 'stale.bytes')]
+        expected_record = MetricRecord('caches.stale.bytes', 'counter', 0, self.plugin.instance_id,
+                                       {'cache.name' : 'http_cache', 'nginx.version' : '1.11.10'})
+
+        self.plugin._emit_cache_metrics(metrics, self.mock_sink)
+
+        self.assertEquals(1, len(self.mock_sink.captured_records))
+        self._validate_single_record(expected_record, self.mock_sink.captured_records[0])
+
+    def test_cache_revalidated_bytes(self):
+        metrics = [MetricDefinition('caches.revalidated.bytes', 'counter', 'revalidated.bytes')]
+        expected_record = MetricRecord('caches.revalidated.bytes', 'counter', 0, self.plugin.instance_id,
+                                       {'cache.name' : 'http_cache', 'nginx.version' : '1.11.10'})
+
+        self.plugin._emit_cache_metrics(metrics, self.mock_sink)
+
+        self.assertEquals(1, len(self.mock_sink.captured_records))
+        self._validate_single_record(expected_record, self.mock_sink.captured_records[0])
+
+    def test_cache_expired_bytes(self):
+        metrics = [MetricDefinition('caches.expired.bytes', 'counter', 'expired.bytes')]
+        expected_record = MetricRecord('caches.expired.bytes', 'counter', 12680616950, self.plugin.instance_id,
+                                       {'cache.name' : 'http_cache', 'nginx.version' : '1.11.10'})
+
+        self.plugin._emit_cache_metrics(metrics, self.mock_sink)
+
+        self.assertEquals(1, len(self.mock_sink.captured_records))
+        self._validate_single_record(expected_record, self.mock_sink.captured_records[0])
+
+    def test_cache_bypass_bytes(self):
+        metrics = [MetricDefinition('caches.bypass.bytes', 'counter', 'bypass.bytes')]
+        expected_record = MetricRecord('caches.bypass.bytes', 'counter', 13463073699, self.plugin.instance_id,
+                                       {'cache.name' : 'http_cache', 'nginx.version' : '1.11.10'})
+
+        self.plugin._emit_cache_metrics(metrics, self.mock_sink)
+
+        self.assertEquals(1, len(self.mock_sink.captured_records))
+        self._validate_single_record(expected_record, self.mock_sink.captured_records[0])
+
+    def test_cache_updating_bytes(self):
+        metrics = [MetricDefinition('caches.updating.bytes', 'counter', 'updating.bytes')]
+        expected_record = MetricRecord('caches.updating.bytes', 'counter', 0, self.plugin.instance_id,
+                                       {'cache.name' : 'http_cache', 'nginx.version' : '1.11.10'})
+
+        self.plugin._emit_cache_metrics(metrics, self.mock_sink)
+
+        self.assertEquals(1, len(self.mock_sink.captured_records))
+        self._validate_single_record(expected_record, self.mock_sink.captured_records[0])
+
+    def test_cache_miss_responses_written(self):
+        metrics = [MetricDefinition('caches.miss.responses.written', 'counter', 'miss.responses_written')]
+        expected_record = MetricRecord('caches.miss.responses.written', 'counter', 3662030, self.plugin.instance_id,
+                                       {'cache.name' : 'http_cache', 'nginx.version' : '1.11.10'})
+
+        self.plugin._emit_cache_metrics(metrics, self.mock_sink)
+
+        self.assertEquals(1, len(self.mock_sink.captured_records))
+        self._validate_single_record(expected_record, self.mock_sink.captured_records[0])
+
+    def test_cache_miss_bytes_written(self):
+        metrics = [MetricDefinition('caches.miss.bytes.written', 'counter', 'miss.bytes_written')]
+        expected_record = MetricRecord('caches.miss.bytes.written', 'counter', 111710549794, self.plugin.instance_id,
+                                       {'cache.name' : 'http_cache', 'nginx.version' : '1.11.10'})
+
+        self.plugin._emit_cache_metrics(metrics, self.mock_sink)
+
+        self.assertEquals(1, len(self.mock_sink.captured_records))
+        self._validate_single_record(expected_record, self.mock_sink.captured_records[0])
+
+    def test_cache_expired_responses_written(self):
+        metrics = [MetricDefinition('caches.expired.responses.written', 'counter', 'expired.responses_written')]
+        expected_record = MetricRecord('caches.expired.responses.written', 'counter', 381396, self.plugin.instance_id,
+                                       {'cache.name' : 'http_cache', 'nginx.version' : '1.11.10'})
+
+        self.plugin._emit_cache_metrics(metrics, self.mock_sink)
+
+        self.assertEquals(1, len(self.mock_sink.captured_records))
+        self._validate_single_record(expected_record, self.mock_sink.captured_records[0])
+
+    def test_cache_expired_bytes_written(self):
+        metrics = [MetricDefinition('caches.expired.bytes.written', 'counter', 'expired.bytes_written')]
+        expected_record = MetricRecord('caches.expired.bytes.written', 'counter', 12630837186, self.plugin.instance_id,
+                                       {'cache.name' : 'http_cache', 'nginx.version' : '1.11.10'})
+
+        self.plugin._emit_cache_metrics(metrics, self.mock_sink)
+
+        self.assertEquals(1, len(self.mock_sink.captured_records))
+        self._validate_single_record(expected_record, self.mock_sink.captured_records[0])
+
+    def test_cache_bypass_responses_written(self):
+        metrics = [MetricDefinition('caches.bypass.responses.written', 'counter', 'bypass.responses_written')]
+        expected_record = MetricRecord('caches.bypass.responses.written', 'counter', 793717, self.plugin.instance_id,
+                                       {'cache.name' : 'http_cache', 'nginx.version' : '1.11.10'})
+
+        self.plugin._emit_cache_metrics(metrics, self.mock_sink)
+
+        self.assertEquals(1, len(self.mock_sink.captured_records))
+        self._validate_single_record(expected_record, self.mock_sink.captured_records[0])
+
+    def test_cache_bypass_bytes_written(self):
+        metrics = [MetricDefinition('caches.bypass.bytes.written', 'counter', 'bypass.bytes_written')]
+        expected_record = MetricRecord('caches.bypass.bytes.written', 'counter', 13463063991, self.plugin.instance_id,
                                        {'cache.name' : 'http_cache', 'nginx.version' : '1.11.10'})
 
         self.plugin._emit_cache_metrics(metrics, self.mock_sink)
@@ -1106,7 +1334,7 @@ class NginxCollectdTest(TestCase):
 
         expected_records = [expected_record_1, expected_record_2, expected_record_3, expected_record_4]
 
-        self.plugin._emit_stream_upstreams_metrics(metrics, self.mock_sink)
+        self.plugin._emit_stream_upstreams_peer_metrics(metrics, self.mock_sink)
 
         self.assertEquals(len(expected_records), len(self.mock_sink.captured_records))
         self._verify_records_captured(expected_records)
@@ -1129,7 +1357,7 @@ class NginxCollectdTest(TestCase):
 
         expected_records = [expected_record_1, expected_record_2, expected_record_3, expected_record_4]
 
-        self.plugin._emit_stream_upstreams_metrics(metrics, self.mock_sink)
+        self.plugin._emit_stream_upstreams_peer_metrics(metrics, self.mock_sink)
 
         self.assertEquals(len(expected_records), len(self.mock_sink.captured_records))
         self._verify_records_captured(expected_records)
@@ -1142,7 +1370,7 @@ class NginxCollectdTest(TestCase):
 
         expected_records = [expected_record_1]
 
-        self.plugin._emit_stream_upstreams_metrics(metrics, self.mock_sink)
+        self.plugin._emit_stream_upstreams_peer_metrics(metrics, self.mock_sink)
 
         self.assertEquals(len(expected_records), len(self.mock_sink.captured_records))
         self._verify_records_captured(expected_records)
@@ -1165,7 +1393,7 @@ class NginxCollectdTest(TestCase):
 
         expected_records = [expected_record_1, expected_record_2, expected_record_3, expected_record_4]
 
-        self.plugin._emit_stream_upstreams_metrics(metrics, self.mock_sink)
+        self.plugin._emit_stream_upstreams_peer_metrics(metrics, self.mock_sink)
 
         self.assertEquals(len(expected_records), len(self.mock_sink.captured_records))
         self._verify_records_captured(expected_records)
@@ -1188,7 +1416,7 @@ class NginxCollectdTest(TestCase):
 
         expected_records = [expected_record_1, expected_record_2, expected_record_3, expected_record_4]
 
-        self.plugin._emit_stream_upstreams_metrics(metrics, self.mock_sink)
+        self.plugin._emit_stream_upstreams_peer_metrics(metrics, self.mock_sink)
 
         self.assertEquals(len(expected_records), len(self.mock_sink.captured_records))
         self._verify_records_captured(expected_records)
@@ -1212,7 +1440,7 @@ class NginxCollectdTest(TestCase):
 
         expected_records = [expected_record_1, expected_record_2, expected_record_3, expected_record_4]
 
-        self.plugin._emit_stream_upstreams_metrics(metrics, self.mock_sink)
+        self.plugin._emit_stream_upstreams_peer_metrics(metrics, self.mock_sink)
 
         self.assertEquals(len(expected_records), len(self.mock_sink.captured_records))
         self._verify_records_captured(expected_records)
@@ -1235,7 +1463,7 @@ class NginxCollectdTest(TestCase):
 
         expected_records = [expected_record_1, expected_record_2, expected_record_3, expected_record_4]
 
-        self.plugin._emit_stream_upstreams_metrics(metrics, self.mock_sink)
+        self.plugin._emit_stream_upstreams_peer_metrics(metrics, self.mock_sink)
 
         self.assertEquals(len(expected_records), len(self.mock_sink.captured_records))
         self._verify_records_captured(expected_records)
@@ -1259,7 +1487,7 @@ class NginxCollectdTest(TestCase):
 
         expected_records = [expected_record_1, expected_record_2, expected_record_3, expected_record_4]
 
-        self.plugin._emit_stream_upstreams_metrics(metrics, self.mock_sink)
+        self.plugin._emit_stream_upstreams_peer_metrics(metrics, self.mock_sink)
 
         self.assertEquals(len(expected_records), len(self.mock_sink.captured_records))
         self._verify_records_captured(expected_records)
@@ -1283,7 +1511,7 @@ class NginxCollectdTest(TestCase):
 
         expected_records = [expected_record_1, expected_record_2, expected_record_3, expected_record_4]
 
-        self.plugin._emit_stream_upstreams_metrics(metrics, self.mock_sink)
+        self.plugin._emit_stream_upstreams_peer_metrics(metrics, self.mock_sink)
 
         self.assertEquals(len(expected_records), len(self.mock_sink.captured_records))
         self._verify_records_captured(expected_records)
@@ -1307,7 +1535,7 @@ class NginxCollectdTest(TestCase):
 
         expected_records = [expected_record_1, expected_record_2, expected_record_3, expected_record_4]
 
-        self.plugin._emit_stream_upstreams_metrics(metrics, self.mock_sink)
+        self.plugin._emit_stream_upstreams_peer_metrics(metrics, self.mock_sink)
 
         self.assertEquals(len(expected_records), len(self.mock_sink.captured_records))
         self._verify_records_captured(expected_records)
@@ -1331,7 +1559,7 @@ class NginxCollectdTest(TestCase):
 
         expected_records = [expected_record_1, expected_record_2, expected_record_3, expected_record_4]
 
-        self.plugin._emit_stream_upstreams_metrics(metrics, self.mock_sink)
+        self.plugin._emit_stream_upstreams_peer_metrics(metrics, self.mock_sink)
 
         self.assertEquals(len(expected_records), len(self.mock_sink.captured_records))
         self._verify_records_captured(expected_records)
@@ -1355,10 +1583,35 @@ class NginxCollectdTest(TestCase):
 
         expected_records = [expected_record_1, expected_record_2, expected_record_3, expected_record_4]
 
+        self.plugin._emit_stream_upstreams_peer_metrics(metrics, self.mock_sink)
+
+        self.assertEquals(len(expected_records), len(self.mock_sink.captured_records))
+        self._verify_records_captured(expected_records)
+
+    def test_stream_upstream_zombies(self):
+        instance_id = self.plugin.instance_id
+        metrics = [MetricDefinition('stream.upstreams.zombies', 'counter', 'zombies')]
+        expected_record_1 = MetricRecord('stream.upstreams.zombies', 'counter', 0, instance_id,
+                                         {'stream.upstream.name' : 'postgresql_backends', 'nginx.version' : '1.11.10'})
+        expected_record_2 = MetricRecord('stream.upstreams.zombies', 'counter', 0, instance_id,
+                                         {'stream.upstream.name' : 'dns_udp_backends', 'nginx.version' : '1.11.10'})
+
+        expected_records = [expected_record_1, expected_record_2]
+
         self.plugin._emit_stream_upstreams_metrics(metrics, self.mock_sink)
 
         self.assertEquals(len(expected_records), len(self.mock_sink.captured_records))
         self._verify_records_captured(expected_records)
+
+    def test_processes_respawned(self):
+        metrics = [MetricDefinition('processes.respawned', 'counter', 'respawned')]
+        expected_record = MetricRecord('processes.respawned', 'counter', 0, self.plugin.instance_id,
+                                       {'nginx.version' : '1.11.10'})
+
+        self.plugin._emit_processes_metrics(metrics, self.mock_sink)
+
+        self.assertEquals(1, len(self.mock_sink.captured_records))
+        self._validate_single_record(expected_record, self.mock_sink.captured_records[0])
 
     def test_emit_with_extra_dimensions(self):
         extra_dim_key = self._random_string()
@@ -1421,6 +1674,7 @@ class NginxCollectdTest(TestCase):
         status_requests_json = self._read_test_resource_json('resources/status_requests.json')
         status_ssl_json = self._read_test_resource_json('resources/status_ssl.json')
         status_slabs_json = self._read_test_resource_json('resources/status_slabs.json')
+        processes_json = self._read_test_resource_json('resources/status_processes.json')
 
         mock_nginx_agent.get_status = MagicMock(return_value=status_json)
         mock_nginx_agent.get_caches = MagicMock(return_value=status_caches_json)
@@ -1432,6 +1686,7 @@ class NginxCollectdTest(TestCase):
         mock_nginx_agent.get_requests = MagicMock(return_value=status_requests_json)
         mock_nginx_agent.get_ssl = MagicMock(return_value=status_ssl_json)
         mock_nginx_agent.get_slabs = MagicMock(return_value=status_slabs_json)
+        mock_nginx_agent.get_processes = MagicMock(return_value=processes_json)
 
         mock_nginx_agent.get_nginx_version = MagicMock(return_value='1.11.10')
         mock_nginx_agent.get_nginx_address = MagicMock(return_value='206.251.255.64')

@@ -142,8 +142,8 @@ To include these metrics, add `Cache true` to the plugin configuration, e.g.
 ##### Metrics
 * caches.size
 * caches.size.max
-* caches.hits
-* caches.misses
+* caches.hit.responses
+* caches.miss.responses
 
 ### Stream Server Zone Metrics
 All stream server zone metrics are decorated with dimension `stream.server.zone.name` .

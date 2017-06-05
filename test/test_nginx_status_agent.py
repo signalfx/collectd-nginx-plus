@@ -137,6 +137,13 @@ class NginxStatusAgentTest(TestCase):
         auth_agent.get_status()
         mock_requests_get.assert_called_with(self.base_status_url, auth=auth_tuple)
 
+    @patch('requests.get')
+    def test_get_processes(self, mock_requests_get):
+        expected_url = '{}/processes'.format(self.base_status_url)
+
+        self.agent.get_processes()
+        mock_requests_get.assert_called_with(expected_url, auth=None)
+
 def _random_string(length=8):
     return ''.join(random.choice(string.lowercase) for i in range(length))
 
