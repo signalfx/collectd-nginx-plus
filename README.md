@@ -50,7 +50,7 @@ LoadPlugin python
 
 ## Metrics
 
-By default only a small subset of the available metrics are published by default. The remaining metrics can be enabled
+By default only a subset of the available metrics are published by default. The remaining metrics can be enabled
 by opting-in to additional metric groups. The metrics in each group are listed below, along with the dimensions added
 to each group. By default all metrics are decorated with the `nginx.version` dimension.
 
@@ -62,12 +62,29 @@ These metrics are published by default.
 | connections.accepted | None |
 | connections.dropped | None |
 | connections.idle | None |
+| connections.active | None |
 | ssl.handshakes.successful | None |
 | ssl.handshakes.failed | None |
+| ssl.handshakes.reuses | None |
 | requests.total | None |
 | requests.current | None |
 | server.zone.requests | server.zone.name |
+| server.zone.responses.4xx | server.zone.name |
+| server.zone.responses.5xx | server.zone.name |
+| server.zone.responses.total | server.zone.name |
+| server.zone.responses.received | server.zone.name |
+| server.zone.bytes.received | server.zone.name |
+| server.zone.bytes.sent | server.zone.name |
+| caches.size | cache.name |
+| caches.size.max | cache.name |
 | upstreams.requests | upstream.name, upstream.peer.name |
+| upstreams.responses.4xx | upstream.name, upstream.peer.name |
+| upstreams.responses.5xx | upstream.name, upstream.peer.name |
+| upstreams.responses.total | upstream.name, upstream.peer.name |
+| upstreams.downtime | upstream.name, upstream.peer.name |
+| upstreams.response.time | upstream.name, upstream.peer.name |
+| upstreams.bytes.received | upstream.name, upstream.peer.name |
+| upstreams.bytes.sent | upstream.name, upstream.peer.name |
 
 ### Server Zone Metrics
 All server zone metrics are decorated with dimension `server.zone.name` .
@@ -82,14 +99,9 @@ To include these metrics, add `ServerZone true` to the plugin configuration, e.g
 ##### Metrics
 * server.zone.processing
 * server.zone.discarded
-* server.zone.responses.total
 * server.zone.responses.1xx
 * server.zone.responses.2xx
 * server.zone.responses.3xx
-* server.zone.responses.4xx
-* server.zone.responses.5xx
-* server.zone.bytes.received
-* server.zone.bytes.sent
 
 ### Memory Zone Metrics
 All memory zone metrics are decorated with dimension `memory.zone.name` .
@@ -117,17 +129,17 @@ To include these metrics, add `Upstream true` to the plugin configuration, e.g.
 ```
 ##### Metrics
 * upstreams.active
-* upstreams.responses.total
 * upstreams.responses.1xx
 * upstreams.responses.2xx
 * upstreams.responses.3xx
-* upstreams.responses.4xx
-* upstreams.responses.5xx
 * upstreams.fails
 * upstreams.unavailable
 * upstreams.health.checks.checks
 * upstreams.health.checks.fails
 * upstreams.health.checks.unhealthy
+* upstreams.header.time
+* upstreams.keepalive
+* upstreams.zombies
 
 ### Cache Metrics
 All cache metrics are decorated with dimension `cache.name` .
@@ -140,10 +152,26 @@ To include these metrics, add `Cache true` to the plugin configuration, e.g.
   </Module>
 ```
 ##### Metrics
-* caches.size
-* caches.size.max
 * caches.hit.responses
 * caches.miss.responses
+* caches.stale.responses
+* caches.updating.responses
+* caches.revalidated.responses
+* caches.expired.responses
+* caches.bypass.responses
+* caches.hit.bytes
+* caches.miss.bytes
+* caches.stale.bytes
+* caches.updating.bytes
+* caches.revalidated.bytes
+* caches.expired.bytes
+* caches.bypass.bytes
+* caches.miss.responses.written
+* caches.expired.responses.written
+* caches.bypass.responses.written
+* caches.miss.bytes.written
+* caches.expired.bytes.written
+* caches.bypass.bytes.written
 
 ### Stream Server Zone Metrics
 All stream server zone metrics are decorated with dimension `stream.server.zone.name` .
@@ -186,6 +214,24 @@ To include these metrics, add `StreamUpstream true` to the plugin configuration,
 * stream.upstreams.health.checks.checks
 * stream.upstreams.health.checks.fails
 * stream.upstreams.health.checks.unhealthy
+* stream.upstreams.response.time
+* stream.upstreams.downtime
+* stream.upstreams.bytes.received
+* stream.upstreams.bytes.sent
+* stream.upstreams.zombies
+
+### Processes Metrics
+Process metrics only include the default dimensions.
+To include these metrics, add `Processes true` to the plugin configuration, e.g.
+```apache
+  <Module nginx_plus_collectd>
+    StatusHost "localhost"
+    StatusPort 8080
+    Processes true
+  </Module>
+```
+##### Metrics
+* processes.respawned
 
 ## Development
 Before making changes to the plugin, it is highly recommended first create a virtual Python environment.

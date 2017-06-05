@@ -956,6 +956,7 @@ if __name__ == '__main__':
     mock_config_cache_child = CollectdConfigChildMock(CACHE, ['true'])
     mock_config_stream_server_zone_child = CollectdConfigChildMock(STREAM_SERVER_ZONE, ['true'])
     mock_config_stream_upstream_child = CollectdConfigChildMock(STREAM_UPSTREAM, ['true'])
+    mock_config_processes_child = CollectdConfigChildMock(PROCESSES, ['true'])
 
     mock_config = CollectdConfigMock([mock_config_ip_child,
                                       mock_config_port_child,
@@ -969,7 +970,8 @@ if __name__ == '__main__':
                                       mock_config_username,
                                       mock_config_password,
                                       mock_config_dimension,
-                                      mock_config_dimensions])
+                                      mock_config_dimensions,
+                                      mock_config_processes_child])
 
     plugin_manager = NginxPlusPluginManager()
     plugin_manager.config_callback(mock_config)
