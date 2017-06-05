@@ -418,8 +418,8 @@ class NginxCollectdTest(TestCase):
         self._validate_single_record(expected_record, self.mock_sink.captured_records[0])
 
     def test_requests_current(self):
-        metrics = [MetricDefinition('requests.current', 'counter', 'current')]
-        expected_record = MetricRecord('requests.current', 'counter', 6, self.plugin.instance_id,
+        metrics = [MetricDefinition('requests.current', 'gauge', 'current')]
+        expected_record = MetricRecord('requests.current', 'gauge', 6, self.plugin.instance_id,
                                        {'nginx.version' : '1.11.10'})
 
         self.plugin._emit_requests_metrics(metrics, self.mock_sink)

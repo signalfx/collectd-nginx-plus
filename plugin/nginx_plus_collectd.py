@@ -131,7 +131,7 @@ DEFAULT_SSL_METRICS = [
 
 DEFAULT_REQUESTS_METRICS = [
     MetricDefinition('requests.total', 'counter', 'total'),
-    MetricDefinition('requests.current', 'counter', 'current')
+    MetricDefinition('requests.current', 'gauge', 'current')
 ]
 
 DEFAULT_SERVER_ZONE_METRICS = [
