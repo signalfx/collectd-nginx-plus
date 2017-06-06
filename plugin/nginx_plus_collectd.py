@@ -244,9 +244,7 @@ STREAM_UPSTREAM_PEER_METRICS = [
     MetricDefinition('stream.upstreams.health.checks.fails', 'counter', 'health_checks.fails'),
     MetricDefinition('stream.upstreams.health.checks.unhealthy', 'counter', 'health_checks.unhealthy'),
     MetricDefinition('stream.upstreams.response.time', 'gauge', 'response_time'),
-    MetricDefinition('stream.upstreams.downtime', 'counter', 'downtime'),
-    MetricDefinition('stream.upstreams.bytes.received', 'counter', 'received'),
-    MetricDefinition('stream.upstreams.bytes.sent', 'counter', 'sent')
+    MetricDefinition('stream.upstreams.downtime', 'counter', 'downtime')
 ]
 
 PROCESSES_METRICS = [
