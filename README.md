@@ -38,7 +38,7 @@ LoadPlugin python
 
   <Module nginx_plus_collectd>
     StatusHost "localhost"
-    StatusPort 8080
+    StatusPort "8080"
     DebugLogLevel true
     Username "user_1"
     Password "my_password"
@@ -92,7 +92,7 @@ To include these metrics, add `ServerZone true` to the plugin configuration, e.g
 ```apache
   <Module nginx_plus_collectd>
     StatusHost "localhost"
-    StatusPort 8080
+    StatusPort "8080"
     ServerZone true
   </Module>
 ```
@@ -109,7 +109,7 @@ To include these metrics, add `MemoryZone true` to the plugin configuration, e.g
 ```apache
   <Module nginx_plus_collectd>
     StatusHost "localhost"
-    StatusPort 8080
+    StatusPort "8080"
     MemoryZone true
   </Module>
 ```
@@ -123,7 +123,7 @@ To include these metrics, add `Upstream true` to the plugin configuration, e.g.
 ```apache
   <Module nginx_plus_collectd>
     StatusHost "localhost"
-    StatusPort 8080
+    StatusPort "8080"
     Upstream true
   </Module>
 ```
@@ -147,7 +147,7 @@ To include these metrics, add `Cache true` to the plugin configuration, e.g.
 ```apache
   <Module nginx_plus_collectd>
     StatusHost "localhost"
-    StatusPort 8080
+    StatusPort "8080"
     Cache true
   </Module>
 ```
@@ -179,7 +179,7 @@ To include these metrics, add `StreamServerZone true` to the plugin configuratio
 ```apache
   <Module nginx_plus_collectd>
     StatusHost "localhost"
-    StatusPort 8080
+    StatusPort "8080"
     StreamServerZone true
   </Module>
 ```
@@ -199,7 +199,7 @@ To include these metrics, add `StreamUpstream true` to the plugin configuration,
 ```apache
   <Module nginx_plus_collectd>
     StatusHost "localhost"
-    StatusPort 8080
+    StatusPort "8080"
     StreamUpstream true
   </Module>
 ```
@@ -226,7 +226,7 @@ To include these metrics, add `Processes true` to the plugin configuration, e.g.
 ```apache
   <Module nginx_plus_collectd>
     StatusHost "localhost"
-    StatusPort 8080
+    StatusPort "8080"
     Processes true
   </Module>
 ```
