@@ -1,0 +1,138 @@
+{
+  "trac-backend": {
+    "peers": [{
+      "id": 0,
+      "server": "10.0.0.1:8080",
+      "name": "10.0.0.1:8080",
+      "backup": false,
+      "weight": 1,
+      "state": "up",
+      "active": 0,
+      "requests": 100378,
+      "header_time": 262,
+      "response_time": 263,
+      "responses": {
+        "1xx": 0,
+        "2xx": 99556,
+        "3xx": 531,
+        "4xx": 280,
+        "5xx": 11,
+        "total": 100378
+      },
+      "sent": 40055511,
+      "received": 5422262265,
+      "fails": 0,
+      "unavail": 0,
+      "health_checks": {
+        "checks": 43992,
+        "fails": 0,
+        "unhealthy": 0,
+        "last_passed": true
+      },
+      "downtime": 0,
+      "downstart": 0,
+      "selected": 1495715098000
+    }, {
+      "id": 1,
+      "server": "10.0.0.1:8081",
+      "name": "10.0.0.1:8081",
+      "backup": true,
+      "weight": 1,
+      "state": "unhealthy",
+      "active": 0,
+      "requests": 0,
+      "responses": {
+        "1xx": 0,
+        "2xx": 0,
+        "3xx": 0,
+        "4xx": 0,
+        "5xx": 0,
+        "total": 0
+      },
+      "sent": 0,
+      "received": 0,
+      "fails": 0,
+      "unavail": 0,
+      "health_checks": {
+        "checks": 44050,
+        "fails": 44050,
+        "unhealthy": 1,
+        "last_passed": false
+      },
+      "downtime": 440698187,
+      "downstart": 1495274402470,
+      "selected": 0
+    }],
+    "keepalive": 0,
+    "zombies": 0,
+    "zone": "trac-backend"
+  },
+  "hg-backend": {
+    "peers": [{
+      "id": 0,
+      "server": "10.0.0.1:8088",
+      "name": "10.0.0.1:8088",
+      "backup": false,
+      "weight": 5,
+      "state": "up",
+      "active": 1,
+      "requests": 750715,
+      "header_time": 64,
+      "response_time": 81,
+      "responses": {
+        "1xx": 0,
+        "2xx": 749277,
+        "3xx": 0,
+        "4xx": 1408,
+        "5xx": 29,
+        "total": 750714
+      },
+      "sent": 282690255,
+      "received": 18204975597,
+      "fails": 0,
+      "unavail": 0,
+      "health_checks": {
+        "checks": 43926,
+        "fails": 0,
+        "unhealthy": 0,
+        "last_passed": true
+      },
+      "downtime": 0,
+      "downstart": 0,
+      "selected": 1495715100000
+    }, {
+      "id": 1,
+      "server": "10.0.0.1:8089",
+      "name": "10.0.0.1:8089",
+      "backup": true,
+      "weight": 1,
+      "state": "unhealthy",
+      "active": 0,
+      "requests": 0,
+      "responses": {
+        "1xx": 0,
+        "2xx": 0,
+        "3xx": 0,
+        "4xx": 0,
+        "5xx": 0,
+        "total": 0
+      },
+      "sent": 0,
+      "received": 0,
+      "fails": 0,
+      "unavail": 0,
+      "health_checks": {
+        "checks": 44050,
+        "fails": 44050,
+        "unhealthy": 1,
+        "last_passed": false
+      },
+      "downtime": 440698187,
+      "downstart": 1495274402470,
+      "selected": 0
+    }],
+    "keepalive": 0,
+    "zombies": 0,
+    "zone": "hg-backend"
+  }
+}

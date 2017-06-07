@@ -1,0 +1,64 @@
+{
+  "nginxorg": {
+    "pages": {
+      "used": 6,
+      "free": 1
+    },
+    "slots": {
+      "8": {
+        "used": 1,
+        "free": 503,
+        "reqs": 1,
+        "fails": 0
+      },
+      "16": {
+        "used": 2,
+        "free": 252,
+        "reqs": 2,
+        "fails": 0
+      },
+      "32": {
+        "used": 1,
+        "free": 126,
+        "reqs": 1,
+        "fails": 0
+      },
+      "64": {
+        "used": 0,
+        "free": 0,
+        "reqs": 0,
+        "fails": 0
+      },
+      "128": {
+        "used": 12,
+        "free": 20,
+        "reqs": 16,
+        "fails": 0
+      },
+      "256": {
+        "used": 1,
+        "free": 15,
+        "reqs": 1,
+        "fails": 0
+      },
+      "512": {
+        "used": 5,
+        "free": 3,
+        "reqs": 7,
+        "fails": 0
+      },
+      "1024": {
+        "used": 0,
+        "free": 0,
+        "reqs": 0,
+        "fails": 0
+      },
+      "2048": {
+        "used": 0,
+        "free": 0,
+        "reqs": 0,
+        "fails": 0
+      }
+    }
+  }
+}

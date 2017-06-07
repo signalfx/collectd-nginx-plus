@@ -1,0 +1,7 @@
+*.pyc
+*.tox
+nosetests.xml
+coverage.xml
+pylint.out
+py27/
+docker/
