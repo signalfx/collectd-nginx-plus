@@ -4,4 +4,5 @@ nosetests.xml
 coverage.xml
 pylint.out
 py27/
-docker/
+docker/nginx-plus-server/nginx-repo.crt
+docker/nginx-plus-server/nginx-repo.key
