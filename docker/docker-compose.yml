@@ -1,0 +1,44 @@
+version: '3'
+services:
+  foo-backend.server.1.com:
+    build: ./random-status-server
+    image: random_status_server
+    environment:
+      - STATUS_CODES=200,400
+  foo-backend.server.2.com:
+    image: "random_status_server:latest"
+    depends_on:
+      - foo-backend.server.1.com
+  bar-backend.server.1.com:
+    image: "random_status_server:latest"
+    depends_on:
+      - foo-backend.server.1.com
+    environment:
+      - STATUS_CODES=200,400
+  bar-backend.server.2.com:
+    image: "random_status_server:latest"
+    depends_on:
+      - foo-backend.server.1.com
+  nginx_plus_server:
+    build: ./nginx-plus-server
+    image: nginx_plus
+    ports:
+      - "80"
+      - "8080"
+      - "8081"
+    volumes:
+      - ./nginx-plus-server:/etc/nginx:ro
+    depends_on:
+      - foo-backend.server.1.com
+      - foo-backend.server.2.com
+      - bar-backend.server.1.com
+      - bar-backend.server.2.com
+  nginx_plus_client:
+    build: ./nginx-plus-client
+    image: nginx_plus_requests_client
+    depends_on:
+      - nginx_plus_server
+    environment:
+      - TARGET_HOST=nginx_plus_server
+      - PORTS=8080,8081
+      - REQ_PER_SEC=5
