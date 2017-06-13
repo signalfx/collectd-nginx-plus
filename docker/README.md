@@ -14,7 +14,7 @@ Two of the four server containers return random status codes with random amounts
 as their peers. The list of status codes to select from as well as the min and max response times can be changed in the
 `docker-compose.yml` via the environment variables for each container.
 
-The client container will sent a request to each NGINX Plus port that is proxying to the server containers. By default
+The client container will send a request to each NGINX Plus port that is proxying to the server containers. By default
 the client sends five requests per second. The requests per second can be changed in the `docker-compose.yml` via
 the container environment variables.
 
