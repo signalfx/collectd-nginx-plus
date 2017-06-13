@@ -136,6 +136,9 @@ DEFAULT_REQUESTS_METRICS = [
 
 DEFAULT_SERVER_ZONE_METRICS = [
     MetricDefinition('server.zone.requests', 'counter', 'requests'),
+    MetricDefinition('server.zone.responses.1xx', 'counter', 'responses.1xx'),
+    MetricDefinition('server.zone.responses.2xx', 'counter', 'responses.2xx'),
+    MetricDefinition('server.zone.responses.3xx', 'counter', 'responses.3xx'),
     MetricDefinition('server.zone.responses.4xx', 'counter', 'responses.4xx'),
     MetricDefinition('server.zone.responses.5xx', 'counter', 'responses.5xx'),
     MetricDefinition('server.zone.responses.total', 'counter', 'responses.total'),
@@ -145,6 +148,9 @@ DEFAULT_SERVER_ZONE_METRICS = [
 
 DEFAULT_UPSTREAM_METRICS = [
     MetricDefinition('upstreams.requests', 'counter', 'requests'),
+    MetricDefinition('upstreams.responses.1xx', 'counter', 'responses.1xx'),
+    MetricDefinition('upstreams.responses.2xx', 'counter', 'responses.2xx'),
+    MetricDefinition('upstreams.responses.3xx', 'counter', 'responses.3xx'),
     MetricDefinition('upstreams.responses.4xx', 'counter', 'responses.4xx'),
     MetricDefinition('upstreams.responses.5xx', 'counter', 'responses.5xx'),
     MetricDefinition('upstreams.responses.total', 'counter', 'responses.total'),
@@ -161,10 +167,7 @@ DEFAULT_CACHE_METRICS = [
 
 SERVER_ZONE_METRICS = [
     MetricDefinition('server.zone.processing', 'counter', 'processing'),
-    MetricDefinition('server.zone.discarded', 'counter', 'discarded'),
-    MetricDefinition('server.zone.responses.1xx', 'counter', 'responses.1xx'),
-    MetricDefinition('server.zone.responses.2xx', 'counter', 'responses.2xx'),
-    MetricDefinition('server.zone.responses.3xx', 'counter', 'responses.3xx')
+    MetricDefinition('server.zone.discarded', 'counter', 'discarded')
 ]
 
 MEMORY_ZONE_METRICS = [
@@ -181,9 +184,6 @@ UPSTREAM_METRICS = [
 # Metrics taken from each upstream peer
 UPSTREAM_PEER_METRICS = [
     MetricDefinition('upstreams.active', 'counter', 'active'),
-    MetricDefinition('upstreams.responses.1xx', 'counter', 'responses.1xx'),
-    MetricDefinition('upstreams.responses.2xx', 'counter', 'responses.2xx'),
-    MetricDefinition('upstreams.responses.3xx', 'counter', 'responses.3xx'),
     MetricDefinition('upstreams.fails', 'counter', 'fails'),
     MetricDefinition('upstreams.unavailable', 'counter', 'unavail'),
     MetricDefinition('upstreams.health.checks.checks', 'counter', 'health_checks.checks'),

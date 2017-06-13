@@ -69,6 +69,9 @@ These metrics are published by default.
 | requests.total | None |
 | requests.current | None |
 | server.zone.requests | server.zone.name |
+| server.zone.responses.1xx | server.zone.name |
+| server.zone.responses.2xx | server.zone.name |
+| server.zone.responses.3xx | server.zone.name |
 | server.zone.responses.4xx | server.zone.name |
 | server.zone.responses.5xx | server.zone.name |
 | server.zone.responses.total | server.zone.name |
@@ -78,6 +81,9 @@ These metrics are published by default.
 | caches.size | cache.name |
 | caches.size.max | cache.name |
 | upstreams.requests | upstream.name, upstream.peer.name |
+| upstreams.responses.1xx | upstream.name, upstream.peer.name |
+| upstreams.responses.2xx | upstream.name, upstream.peer.name |
+| upstreams.responses.3xx | upstream.name, upstream.peer.name |
 | upstreams.responses.4xx | upstream.name, upstream.peer.name |
 | upstreams.responses.5xx | upstream.name, upstream.peer.name |
 | upstreams.responses.total | upstream.name, upstream.peer.name |
@@ -99,9 +105,6 @@ To include these metrics, add `ServerZone true` to the plugin configuration, e.g
 ##### Metrics
 * server.zone.processing
 * server.zone.discarded
-* server.zone.responses.1xx
-* server.zone.responses.2xx
-* server.zone.responses.3xx
 
 ### Memory Zone Metrics
 All memory zone metrics are decorated with dimension `memory.zone.name` .
@@ -129,9 +132,6 @@ To include these metrics, add `Upstream true` to the plugin configuration, e.g.
 ```
 ##### Metrics
 * upstreams.active
-* upstreams.responses.1xx
-* upstreams.responses.2xx
-* upstreams.responses.3xx
 * upstreams.fails
 * upstreams.unavailable
 * upstreams.health.checks.checks
