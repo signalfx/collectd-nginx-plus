@@ -3,7 +3,8 @@
 The content of this directory enables the creation of a local NGINX Plus environment capable of generating default
 metrics. The environment is created via [Docker Compose](https://docs.docker.com/compose/).
 
-The environment is composed of a single NGINX Plus container, four proxied server containers and a client container.
+The environment is composed of a single NGINX Plus container, four proxied server containers, a client container
+and a collectd container running the plugin.
 The NGINX Plus container has two server zones and two upstream groups containing two servers. Each server zone proxies
 to an upstream group. Each server zone also has a cache. The NGINX Plus container maps port 80 to a random host port.
 The `status` endpoint is available on port 80. The status endpoint is protected by username:password. The username is
@@ -17,6 +18,9 @@ as their peers. The list of status codes to select from as well as the min and m
 The client container will send a request to each NGINX Plus port that is proxying to the server containers. By default
 the client sends five requests per second. The requests per second can be changed in the `docker-compose.yml` via
 the container environment variables.
+
+The collectd container will be configured to only report the default metrics. Before building the container, add
+your API token to `collectd/Dockerfile` as the `SF_API_TOKEN` environment variable.
 
 ## Prerequisites
 

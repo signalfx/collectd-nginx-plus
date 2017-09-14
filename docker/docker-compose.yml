@@ -42,3 +42,9 @@ services:
       - TARGET_HOST=nginx_plus_server
       - PORTS=8080,8081
       - REQ_PER_SEC=5
+
+  collectd:
+    build: ./collectd
+    image: collectd_and_plugin
+    depends_on:
+      - nginx_plus_server
