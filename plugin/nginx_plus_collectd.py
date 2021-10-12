@@ -678,16 +678,15 @@ class NginxStatusAgent(object):
         self.status_port = status_port or 8080
         self.auth_tuple = (username, password) if username or password else None
 
-        self.base_status_url = 'http://{}:{}/status'.format(self.status_host, str(self.status_port))
-        self.nginx_version_url = '{}/nginx_version'.format(self.base_status_url)
-        self.address_url = '{}/address'.format(self.base_status_url)
-        self.caches_url = '{}/caches'.format(self.base_status_url)
-        self.server_zones_url = '{}/server_zones'.format(self.base_status_url)
-        self.upstreams_url = '{}/upstreams'.format(self.base_status_url)
+        self.base_status_url = 'http://{}:{}/api/7'.format(self.status_host, str(self.status_port))
+        self.nginx_metadata_url = '{}/nginx'.format(self.base_status_url)
+        self.caches_url = '{}/http/caches'.format(self.base_status_url)
+        self.server_zones_url = '{}/http/server_zones'.format(self.base_status_url)
+        self.upstreams_url = '{}/http/upstreams'.format(self.base_status_url)
         self.stream_upstream_url = '{}/stream/upstreams'.format(self.base_status_url)
         self.stream_server_zones_url = '{}/stream/server_zones'.format(self.base_status_url)
         self.connections_url = '{}/connections'.format(self.base_status_url)
-        self.requests_url = '{}/requests'.format(self.base_status_url)
+        self.requests_url = '{}/http/requests'.format(self.base_status_url)
         self.ssl_url = '{}/ssl'.format(self.base_status_url)
         self.slabs_url = '{}/slabs'.format(self.base_status_url)
         self.processes_url = '{}/processes'.format(self.base_status_url)
@@ -727,14 +726,27 @@ class NginxStatusAgent(object):
         Fetch the version of nginx+.
         Note, this will only return the value, not a dict.
         '''
-        return self._send_get(self.nginx_version_url)
+        json_response = self._send_get(self.nginx_metadata_url)
+        if isinstance(json_response, dict):
+            return json_response.get('version', None)
+        
+        LOGGER.error("Unexpected response of type: %s from %s", type(json_response), self.nginx_metadata_url)
+
+        return None
+        
 
     def get_nginx_address(self):
         '''
         Fetch the address of the nginx+ instance.
         Note, this will only return the value, not a dict.
         '''
-        return self._send_get(self.address_url)
+        json_response = self._send_get(self.nginx_metadata_url)
+        if isinstance(json_response, dict):
+            return json_response.get('address', None)
+        
+        LOGGER.error("Unexpected response of type: %s from %s", type(json_response), self.nginx_metadata_url)
+
+        return None
 
     def get_caches(self):
         '''

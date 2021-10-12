@@ -19,11 +19,11 @@ class MetricSinkTest(TestCase):
 
         instance_id = 'my_plugin'
         metric_value = 1234567890
-        metric_dimensions = {'nginx.version' : '1.11.10'}
+        metric_dimensions = {'nginx.version' : '1.21.3'}
 
         expected_type = 'counter'
         expected_values = [metric_value]
-        expected_plugin_instance = '{}[nginx_version=1.11.10]'.format(instance_id)
+        expected_plugin_instance = '{}[nginx_version=1.21.3]'.format(instance_id)
         expected_type_instance = 'connections.accepted'
         expected_meta = {'true' : 'true'}
         expected_plugin = 'nginx-plus'
