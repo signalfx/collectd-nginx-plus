@@ -1,113 +1,107 @@
 {
   "postgresql_backends": {
-    "peers": [{
-      "id": 0,
-      "server": "10.0.0.2:15432",
-      "name": "10.0.0.2:15432",
-      "backup": false,
-      "weight": 1,
-      "state": "up",
-      "active": 0,
-      "max_conns": 42,
-      "connections": 146429,
-      "connect_time": 1,
-      "first_byte_time": 10,
-      "response_time": 10,
-      "sent": 15667903,
-      "received": 2105701601,
-      "fails": 0,
-      "unavail": 0,
-      "health_checks": {
-        "checks": 88078,
-        "fails": 0,
-        "unhealthy": 0,
-        "last_passed": true
-      },
-      "downtime": 0,
-      "downstart": 0,
-      "selected": 1495715149000
-    }, {
-      "id": 1,
-      "server": "10.0.0.2:15433",
-      "name": "10.0.0.2:15433",
-      "backup": false,
-      "weight": 1,
-      "state": "up",
-      "active": 0,
-      "connections": 146429,
-      "connect_time": 1,
-      "first_byte_time": 7,
-      "response_time": 7,
-      "sent": 15667903,
-      "received": 2105701100,
-      "fails": 0,
-      "unavail": 0,
-      "health_checks": {
-        "checks": 88078,
-        "fails": 0,
-        "unhealthy": 0,
-        "last_passed": true
-      },
-      "downtime": 0,
-      "downstart": 0,
-      "selected": 1495715150000
-    }],
-    "zombies": 0,
-    "zone": "dynamic"
+      "peers": [
+          {
+              "id": 0,
+              "server": "10.0.0.22:15431",
+              "name": "10.0.0.22:15431",
+              "backup": false,
+              "weight": 1,
+              "state": "up",
+              "active": 0,
+              "max_conns": 42,
+              "connections": 0,
+              "sent": 0,
+              "received": 0,
+              "fails": 0,
+              "unavail": 0,
+              "health_checks": {
+                  "checks": 113163,
+                  "fails": 0,
+                  "unhealthy": 0,
+                  "last_passed": true
+              },
+              "downtime": 0
+          },
+          {
+              "id": 1,
+              "server": "10.0.0.23:15431",
+              "name": "10.0.0.23:15431",
+              "backup": false,
+              "weight": 1,
+              "state": "up",
+              "active": 0,
+              "connections": 0,
+              "sent": 0,
+              "received": 0,
+              "fails": 0,
+              "unavail": 0,
+              "health_checks": {
+                  "checks": 113163,
+                  "fails": 0,
+                  "unhealthy": 0,
+                  "last_passed": true
+              },
+              "downtime": 0
+          }
+      ],
+      "zombies": 0,
+      "zone": "dynamic"
   },
   "dns_udp_backends": {
-    "peers": [{
-      "id": 0,
-      "server": "10.0.0.5:53",
-      "name": "10.0.0.5:53",
-      "backup": false,
-      "weight": 2,
-      "state": "up",
-      "active": 0,
-      "connections": 168076,
-      "connect_time": 0,
-      "first_byte_time": 10,
-      "response_time": 10,
-      "sent": 4538052,
-      "received": 22136800,
-      "fails": 0,
-      "unavail": 0,
-      "health_checks": {
-        "checks": 88041,
-        "fails": 3,
-        "unhealthy": 2,
-        "last_passed": true
-      },
-      "downtime": 21395,
-      "downstart": 0,
-      "selected": 1495715146000
-    }, {
-      "id": 1,
-      "server": "10.0.0.2:53",
-      "name": "10.0.0.2:53",
-      "backup": false,
-      "weight": 1,
-      "state": "up",
-      "active": 0,
-      "connections": 84036,
-      "connect_time": 0,
-      "first_byte_time": 10,
-      "response_time": 10,
-      "sent": 2268972,
-      "received": 11068164,
-      "fails": 0,
-      "unavail": 0,
-      "health_checks": {
-        "checks": 88039,
-        "fails": 5,
-        "unhealthy": 2,
-        "last_passed": true
-      },
-      "downtime": 40022,
-      "downstart": 0,
-      "selected": 1495715146000
-    }],
-    "zombies": 0,
-    "zone": "dns_backends"
+      "peers": [
+          {
+              "id": 0,
+              "server": "10.0.3.31:53",
+              "name": "10.0.3.31:53",
+              "backup": false,
+              "weight": 2,
+              "state": "up",
+              "active": 0,
+              "connections": 88905,
+              "connect_time": 0,
+              "first_byte_time": 7,
+              "response_time": 7,
+              "sent": 2801893,
+              "received": 10701561,
+              "fails": 0,
+              "unavail": 0,
+              "health_checks": {
+                  "checks": 113162,
+                  "fails": 0,
+                  "unhealthy": 0,
+                  "last_passed": true
+              },
+              "downtime": 0,
+              "selected": "2021-10-11T05:54:09Z"
+          },
+          {
+              "id": 1,
+              "server": "10.0.0.33:53",
+              "name": "10.0.0.33:53",
+              "backup": false,
+              "weight": 1,
+              "state": "up",
+              "active": 0,
+              "connections": 44453,
+              "connect_time": 0,
+              "first_byte_time": 10,
+              "response_time": 10,
+              "sent": 1360319,
+              "received": 2696239,
+              "fails": 0,
+              "unavail": 0,
+              "health_checks": {
+                  "checks": 113150,
+                  "fails": 0,
+                  "unhealthy": 0,
+                  "last_passed": true
+              },
+              "downtime": 0,
+              "selected": "2021-10-11T05:54:09Z"
+          }
+      ],
+      "zombies": 0,
+      "zone": "dns_backends"
   }
 }
