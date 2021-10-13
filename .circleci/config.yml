@@ -1,0 +1,13 @@
+version: 2
+jobs:
+  run_tox:
+      docker:
+        - image: cimg/python:2.7
+      steps:
+        - checkout
+        - run: pip install tox && tox -e ALL
+workflows:
+  version: 2
+  run_tests:
+    jobs:
+      - run_tox
