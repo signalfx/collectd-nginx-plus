@@ -1,0 +1,21 @@
+name: Test Script
+
+on: pull_request
+
+jobs:
+  test-script:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the codebase.
+        uses: actions/checkout@v2
+
+      - name: Set up Python 2.
+        uses: actions/setup-python@v2
+        with:
+          python-version: '2.x'
+
+      - name: Install requirements.
+        run: pip install -r dev_requirements.txt
+      
+      - name: test
+        run: tox -e ALL
