@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 import sys
 from unittest import TestCase
-from mock import Mock
+from mock import Mock, patch
 
 # Mock out the collectd module
 sys.modules['collectd'] = Mock()
@@ -13,7 +13,14 @@ class NginxPlusPluginManagerTest(TestCase):
     def setUp(self):
         self.plugin_manager = NginxPlusPluginManager()
 
-    def test_config_callback(self):
+    @patch('requests.get')
+    def test_config_callback(self, mock_requests_get):
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = [1, 2, 3, 4, 5, 6, 7]
+
+        mock_requests_get.return_value = mock_response
+
         expected_ip_1 = '192.168.0.0'
         expected_port_1 = '8080'
 

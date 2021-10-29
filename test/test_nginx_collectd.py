@@ -5,7 +5,7 @@ import string
 import json
 import random
 from unittest import TestCase
-from mock import Mock, MagicMock
+from mock import Mock, MagicMock, patch
 
 # Mock out the collectd module
 sys.modules['collectd'] = Mock()
@@ -20,6 +20,7 @@ from plugin.nginx_plus_collectd import NginxPlusPlugin, MetricRecord, MetricDefi
                                         USERNAME, PASSWORD, DIMENSION, DIMENSIONS, DEFAULT_CACHE_METRICS,\
                                         PROCESSES_METRICS, PROCESSES, UPSTREAM_METRICS, STREAM_UPSTREAM_METRICS
 
+
 class NginxCollectdTest(TestCase):
     def setUp(self):
         self.plugin = NginxPlusPlugin()
@@ -27,7 +28,7 @@ class NginxCollectdTest(TestCase):
         self.mock_sink = MockMetricSink()
         self.plugin.nginx_agent = self._build_mock_nginx_agent()
 
-        self.plugin._reload_ephemerial_global_dimensions()
+        self.plugin._reload_ephemeral_global_dimensions()
 
     def test_instance_id_set(self):
         self.plugin.nginx_agent.status_port = self._random_int()
@@ -44,7 +45,10 @@ class NginxCollectdTest(TestCase):
 
         self.assertEquals(0, len(self.mock_sink.captured_records))
 
-    def test_configure_only_defaults_emitters(self):
+    @patch('requests.get')
+    def test_configure_only_defaults_emitters(self, mock_requests_get):
+        mock_requests_get.side_effect = self._mocked_requests_get
+
         expected_metric_names = self._get_default_metric_names()
 
         mock_config = Mock()
@@ -56,7 +60,10 @@ class NginxCollectdTest(TestCase):
         self.assertEquals(len(expected_metric_names), len(actual_metric_names))
         self.assertItemsEqual(expected_metric_names, actual_metric_names)
 
-    def test_configure_server_zone_emitters(self):
+    @patch('requests.get')
+    def test_configure_server_zone_emitters(self, mock_requests_get):
+        mock_requests_get.side_effect = self._mocked_requests_get
+
         expected_metric_names = self._get_default_metric_names()
         expected_metric_names.extend(self._extract_metric_names_from_definitions(SERVER_ZONE_METRICS))
 
@@ -73,7 +80,10 @@ class NginxCollectdTest(TestCase):
         self.assertEquals(len(expected_metric_names), len(actual_metric_names))
         self.assertItemsEqual(expected_metric_names, actual_metric_names)
 
-    def test_configure_memory_zone_emitters(self):
+    @patch('requests.get')
+    def test_configure_memory_zone_emitters(self, mock_requests_get):
+        mock_requests_get.side_effect = self._mocked_requests_get
+
         expected_metric_names = self._get_default_metric_names()
         expected_metric_names.extend(self._extract_metric_names_from_definitions(MEMORY_ZONE_METRICS))
 
@@ -90,7 +100,10 @@ class NginxCollectdTest(TestCase):
         self.assertEquals(len(expected_metric_names), len(actual_metric_names))
         self.assertItemsEqual(expected_metric_names, actual_metric_names)
 
-    def test_configure_upstream_emitters(self):
+    @patch('requests.get')
+    def test_configure_upstream_emitters(self, mock_requests_get):
+        mock_requests_get.side_effect = self._mocked_requests_get
+
         expected_metric_names = self._get_default_metric_names()
         expected_metric_names.extend(self._extract_metric_names_from_definitions(UPSTREAM_METRICS))
         expected_metric_names.extend(self._extract_metric_names_from_definitions(UPSTREAM_PEER_METRICS))
@@ -108,7 +121,10 @@ class NginxCollectdTest(TestCase):
         self.assertEquals(len(expected_metric_names), len(actual_metric_names))
         self.assertItemsEqual(expected_metric_names, actual_metric_names)
 
-    def test_configure_cache_emitters(self):
+    @patch('requests.get')
+    def test_configure_cache_emitters(self, mock_requests_get):
+        mock_requests_get.side_effect = self._mocked_requests_get
+
         expected_metric_names = self._get_default_metric_names()
         expected_metric_names.extend(self._extract_metric_names_from_definitions(CACHE_METRICS))
 
@@ -125,7 +141,10 @@ class NginxCollectdTest(TestCase):
         self.assertEquals(len(expected_metric_names), len(actual_metric_names))
         self.assertItemsEqual(expected_metric_names, actual_metric_names)
 
-    def test_configure_stream_server_zone_emitters(self):
+    @patch('requests.get')
+    def test_configure_stream_server_zone_emitters(self, mock_requests_get):
+        mock_requests_get.side_effect = self._mocked_requests_get
+
         expected_metric_names = self._get_default_metric_names()
         expected_metric_names.extend(self._extract_metric_names_from_definitions(STREAM_SERVER_ZONE_METRICS))
 
@@ -142,7 +161,10 @@ class NginxCollectdTest(TestCase):
         self.assertEquals(len(expected_metric_names), len(actual_metric_names))
         self.assertItemsEqual(expected_metric_names, actual_metric_names)
 
-    def test_configure_stream_upstream_emitters(self):
+    @patch('requests.get')
+    def test_configure_stream_upstream_emitters(self, mock_requests_get):
+        mock_requests_get.side_effect = self._mocked_requests_get
+
         expected_metric_names = self._get_default_metric_names()
         expected_metric_names.extend(self._extract_metric_names_from_definitions(STREAM_UPSTREAM_METRICS))
         expected_metric_names.extend(self._extract_metric_names_from_definitions(STREAM_UPSTREAM_PEER_METRICS))
@@ -160,7 +182,10 @@ class NginxCollectdTest(TestCase):
         self.assertEquals(len(expected_metric_names), len(actual_metric_names))
         self.assertItemsEqual(expected_metric_names, actual_metric_names)
 
-    def test_configure_processes_emitters(self):
+    @patch('requests.get')
+    def test_configure_processes_emitters(self, mock_requests_get):
+        mock_requests_get.side_effect = self._mocked_requests_get
+
         expected_metric_names = self._get_default_metric_names()
         expected_metric_names.extend(self._extract_metric_names_from_definitions(PROCESSES_METRICS))
 
@@ -177,7 +202,10 @@ class NginxCollectdTest(TestCase):
         self.assertEquals(len(expected_metric_names), len(actual_metric_names))
         self.assertItemsEqual(expected_metric_names, actual_metric_names)
 
-    def test_configure_status_host_port(self):
+    @patch('requests.get')
+    def test_configure_status_host_port(self, mock_requests_get):
+        mock_requests_get.side_effect = self._mocked_requests_get
+
         expected_ip = '192.168.0.24'
         expected_port = '411'
 
@@ -197,7 +225,10 @@ class NginxCollectdTest(TestCase):
         self.assertEquals(expected_ip, self.plugin.nginx_agent.status_host)
         self.assertEquals(expected_port, self.plugin.nginx_agent.status_port)
 
-    def test_configure_debug_logging(self):
+    @patch('requests.get')
+    def test_configure_debug_logging(self, mock_requests_get):
+        mock_requests_get.side_effect = self._mocked_requests_get
+
         mock_config = Mock()
         mock_config_child = Mock()
         mock_config_child.key = DEBUG_LOG_LEVEL
@@ -208,7 +239,10 @@ class NginxCollectdTest(TestCase):
         self.plugin.configure(mock_config)
         self.assertTrue(log_handler.debug)
 
-    def test_configure_username_password(self):
+    @patch('requests.get')
+    def test_configure_username_password(self, mock_requests_get):
+        mock_requests_get.side_effect = self._mocked_requests_get
+
         expected_username = self._random_string()
         expected_password = self._random_string()
         expected_auth_tuple = (expected_username, expected_password)
@@ -227,7 +261,10 @@ class NginxCollectdTest(TestCase):
         self.plugin.configure(mock_config)
         self.assertEquals(expected_auth_tuple, self.plugin.nginx_agent.auth_tuple)
 
-    def test_configure_additional_dimensions(self):
+    @patch('requests.get')
+    def test_configure_additional_dimensions(self, mock_requests_get):
+        mock_requests_get.side_effect = self._mocked_requests_get
+
         self.plugin.global_dimensions = {} # Reset the global dimensions
 
         expected_dim_key_1 = self._random_string()
@@ -253,7 +290,10 @@ class NginxCollectdTest(TestCase):
         self.plugin.configure(mock_config)
         self.assertDictEqual(expected_global_dimensions, self.plugin.global_dimensions)
 
-    def test_configure_additional_dimensions_missing_value(self):
+    @patch('requests.get')
+    def test_configure_additional_dimensions_missing_value(self, mock_requests_get):
+        mock_requests_get.side_effect = self._mocked_requests_get
+
         self.plugin.global_dimensions = {} # Reset the global dimensions
 
         expected_dim_key = self._random_string()
@@ -277,7 +317,10 @@ class NginxCollectdTest(TestCase):
         self.plugin.configure(mock_config)
         self.assertDictEqual(expected_global_dimensions, self.plugin.global_dimensions)
 
-    def test_configure_neo_agent_dimension_str(self):
+    @patch('requests.get')
+    def test_configure_neo_agent_dimension_str(self, mock_requests_get):
+        mock_requests_get.side_effect = self._mocked_requests_get
+
         self.plugin.global_dimensions = {} # Reset the global dimensions
 
         expected_dim_key = self._random_string()
@@ -296,7 +339,10 @@ class NginxCollectdTest(TestCase):
         self.plugin.configure(mock_config)
         self.assertDictEqual(expected_global_dimensions, self.plugin.global_dimensions)
 
-    def test_configure_neo_agent_dimension_str_malformed(self):
+    @patch('requests.get')
+    def test_configure_neo_agent_dimension_str_malformed(self, mock_requests_get):
+        mock_requests_get.side_effect = self._mocked_requests_get
+
         self.plugin.global_dimensions = {} # Reset the global dimensions
 
         expected_dim_key = self._random_string()
@@ -430,8 +476,8 @@ class NginxCollectdTest(TestCase):
     def test_server_zone_requests(self):
         metrics = [MetricDefinition('server.zone.requests', 'counter', 'requests')]
         expected_record = MetricRecord('server.zone.requests', 'counter', 64475, self.plugin.instance_id,
-                                         {'server.zone.name' : 'hg.nginx.org', 'nginx.version' : '1.21.3'})
-        
+                                        {'server.zone.name' : 'hg.nginx.org', 'nginx.version' : '1.21.3'})
+
         self.plugin._emit_server_zone_metrics(metrics, self.mock_sink)
 
         self.assertEquals(1, len(self.mock_sink.captured_records))
@@ -441,7 +487,7 @@ class NginxCollectdTest(TestCase):
         metrics = [MetricDefinition('server.zone.processing', 'counter', 'processing')]
         expected_record = MetricRecord('server.zone.processing', 'counter', 0, self.plugin.instance_id,
                                          {'server.zone.name' : 'hg.nginx.org', 'nginx.version' : '1.21.3'})
-        
+
         self.plugin._emit_server_zone_metrics(metrics, self.mock_sink)
 
         self.assertEquals(1, len(self.mock_sink.captured_records))
@@ -451,7 +497,7 @@ class NginxCollectdTest(TestCase):
         metrics = [MetricDefinition('server.zone.discarded', 'counter', 'discarded')]
         expected_record = MetricRecord('server.zone.discarded', 'counter', 0, self.plugin.instance_id,
                                          {'server.zone.name' : 'hg.nginx.org', 'nginx.version' : '1.21.3'})
-        
+
         self.plugin._emit_server_zone_metrics(metrics, self.mock_sink)
 
         self.assertEquals(1, len(self.mock_sink.captured_records))
@@ -461,7 +507,7 @@ class NginxCollectdTest(TestCase):
         metrics = [MetricDefinition('server.zone.responses.total', 'counter', 'responses.total')]
         expected_record = MetricRecord('server.zone.responses.total', 'counter', 64475, self.plugin.instance_id,
                                          {'server.zone.name' : 'hg.nginx.org', 'nginx.version' : '1.21.3'})
-        
+
         self.plugin._emit_server_zone_metrics(metrics, self.mock_sink)
 
         self.assertEquals(1, len(self.mock_sink.captured_records))
@@ -471,7 +517,7 @@ class NginxCollectdTest(TestCase):
         metrics = [MetricDefinition('server.zone.responses.1xx', 'counter', 'responses.1xx')]
         expected_record = MetricRecord('server.zone.responses.1xx', 'counter', 0, self.plugin.instance_id,
                                          {'server.zone.name' : 'hg.nginx.org', 'nginx.version' : '1.21.3'})
-        
+
         self.plugin._emit_server_zone_metrics(metrics, self.mock_sink)
 
         self.assertEquals(1, len(self.mock_sink.captured_records))
@@ -481,7 +527,7 @@ class NginxCollectdTest(TestCase):
         metrics = [MetricDefinition('server.zone.responses.2xx', 'counter', 'responses.2xx')]
         expected_record = MetricRecord('server.zone.responses.2xx', 'counter', 63239, self.plugin.instance_id,
                                          {'server.zone.name' : 'hg.nginx.org', 'nginx.version' : '1.21.3'})
-        
+
         self.plugin._emit_server_zone_metrics(metrics, self.mock_sink)
 
         self.assertEquals(1, len(self.mock_sink.captured_records))
@@ -491,7 +537,7 @@ class NginxCollectdTest(TestCase):
         metrics = [MetricDefinition('server.zone.responses.3xx', 'counter', 'responses.3xx')]
         expected_record = MetricRecord('server.zone.responses.3xx', 'counter', 883, self.plugin.instance_id,
                                          {'server.zone.name' : 'hg.nginx.org', 'nginx.version' : '1.21.3'})
-        
+
         self.plugin._emit_server_zone_metrics(metrics, self.mock_sink)
 
         self.assertEquals(1, len(self.mock_sink.captured_records))
@@ -501,7 +547,7 @@ class NginxCollectdTest(TestCase):
         metrics = [MetricDefinition('server.zone.responses.4xx', 'counter', 'responses.4xx')]
         expected_record = MetricRecord('server.zone.responses.4xx', 'counter', 353, self.plugin.instance_id,
                                          {'server.zone.name' : 'hg.nginx.org', 'nginx.version' : '1.21.3'})
-        
+
         self.plugin._emit_server_zone_metrics(metrics, self.mock_sink)
 
         self.assertEquals(1, len(self.mock_sink.captured_records))
@@ -511,7 +557,7 @@ class NginxCollectdTest(TestCase):
         metrics = [MetricDefinition('server.zone.responses.5xx', 'counter', 'responses.5xx')]
         expected_record = MetricRecord('server.zone.responses.5xx', 'counter', 0, self.plugin.instance_id,
                                          {'server.zone.name' : 'hg.nginx.org', 'nginx.version' : '1.21.3'})
-        
+
         self.plugin._emit_server_zone_metrics(metrics, self.mock_sink)
 
         self.assertEquals(1, len(self.mock_sink.captured_records))
@@ -521,7 +567,7 @@ class NginxCollectdTest(TestCase):
         metrics = [MetricDefinition('server.zone.bytes.received', 'counter', 'received')]
         expected_record = MetricRecord('server.zone.bytes.received', 'counter', 34641169, self.plugin.instance_id,
                                          {'server.zone.name' : 'hg.nginx.org', 'nginx.version' : '1.21.3'})
-        
+
         self.plugin._emit_server_zone_metrics(metrics, self.mock_sink)
 
         self.assertEquals(1, len(self.mock_sink.captured_records))
@@ -562,7 +608,7 @@ class NginxCollectdTest(TestCase):
         expected_record = MetricRecord('upstream.requests', 'counter', 124446, self.plugin.instance_id,
                                          {'upstream.name' : 'trac-backend', 'upstream.peer.name' : '10.0.0.10:8080',
                                           'nginx.version' : '1.21.3'})
-        
+
         self.plugin._emit_upstreams_peer_metrics(metrics, self.mock_sink)
 
         self.assertEquals(1, len(self.mock_sink.captured_records))
@@ -573,7 +619,7 @@ class NginxCollectdTest(TestCase):
         expected_record = MetricRecord('upstreams.active', 'counter', 0, self.plugin.instance_id,
                                          {'upstream.name' : 'trac-backend', 'upstream.peer.name' : '10.0.0.10:8080',
                                           'nginx.version' : '1.21.3'})
-        
+
         self.plugin._emit_upstreams_peer_metrics(metrics, self.mock_sink)
 
         self.assertEquals(1, len(self.mock_sink.captured_records))
@@ -584,7 +630,7 @@ class NginxCollectdTest(TestCase):
         expected_record = MetricRecord('upstreams.responses.total', 'counter', 124445, self.plugin.instance_id,
                                          {'upstream.name' : 'trac-backend', 'upstream.peer.name' : '10.0.0.10:8080',
                                           'nginx.version' : '1.21.3'})
-        
+
         self.plugin._emit_upstreams_peer_metrics(metrics, self.mock_sink)
 
         self.assertEquals(1, len(self.mock_sink.captured_records))
@@ -595,7 +641,7 @@ class NginxCollectdTest(TestCase):
         expected_record = MetricRecord('upstreams.responses.1xx', 'counter', 0, self.plugin.instance_id,
                                          {'upstream.name' : 'trac-backend', 'upstream.peer.name' : '10.0.0.10:8080',
                                           'nginx.version' : '1.21.3'})
-        
+
         self.plugin._emit_upstreams_peer_metrics(metrics, self.mock_sink)
 
         self.assertEquals(1, len(self.mock_sink.captured_records))
@@ -606,7 +652,7 @@ class NginxCollectdTest(TestCase):
         expected_record = MetricRecord('upstreams.responses.2xx', 'counter', 122295, self.plugin.instance_id,
                                          {'upstream.name' : 'trac-backend', 'upstream.peer.name' : '10.0.0.10:8080',
                                           'nginx.version' : '1.21.3'})
-        
+
         self.plugin._emit_upstreams_peer_metrics(metrics, self.mock_sink)
 
         self.assertEquals(1, len(self.mock_sink.captured_records))
@@ -617,7 +663,7 @@ class NginxCollectdTest(TestCase):
         expected_record = MetricRecord('upstreams.responses.3xx', 'counter', 2017, self.plugin.instance_id,
                                          {'upstream.name' : 'trac-backend', 'upstream.peer.name' : '10.0.0.10:8080',
                                           'nginx.version' : '1.21.3'})
-        
+
         self.plugin._emit_upstreams_peer_metrics(metrics, self.mock_sink)
 
         self.assertEquals(1, len(self.mock_sink.captured_records))
@@ -628,7 +674,7 @@ class NginxCollectdTest(TestCase):
         expected_record = MetricRecord('upstreams.responses.4xx', 'counter', 133, self.plugin.instance_id,
                                          {'upstream.name' : 'trac-backend', 'upstream.peer.name' : '10.0.0.10:8080',
                                           'nginx.version' : '1.21.3'})
-        
+
         self.plugin._emit_upstreams_peer_metrics(metrics, self.mock_sink)
 
         self.assertEquals(1, len(self.mock_sink.captured_records))
@@ -639,7 +685,7 @@ class NginxCollectdTest(TestCase):
         expected_record = MetricRecord('upstreams.responses.5xx', 'counter', 0, self.plugin.instance_id,
                                          {'upstream.name' : 'trac-backend', 'upstream.peer.name' : '10.0.0.10:8080',
                                           'nginx.version' : '1.21.3'})
-        
+
         self.plugin._emit_upstreams_peer_metrics(metrics, self.mock_sink)
 
         self.assertEquals(1, len(self.mock_sink.captured_records))
@@ -650,7 +696,7 @@ class NginxCollectdTest(TestCase):
         expected_record = MetricRecord('upstreams.fails', 'counter', 0, self.plugin.instance_id,
                                          {'upstream.name' : 'trac-backend', 'upstream.peer.name' : '10.0.0.10:8080',
                                           'nginx.version' : '1.21.3'})
-        
+
         self.plugin._emit_upstreams_peer_metrics(metrics, self.mock_sink)
 
         self.assertEquals(1, len(self.mock_sink.captured_records))
@@ -661,7 +707,7 @@ class NginxCollectdTest(TestCase):
         expected_record = MetricRecord('upstreams.unavailable', 'counter', 0, self.plugin.instance_id,
                                          {'upstream.name' : 'trac-backend', 'upstream.peer.name' : '10.0.0.10:8080',
                                           'nginx.version' : '1.21.3'})
-        
+
         self.plugin._emit_upstreams_peer_metrics(metrics, self.mock_sink)
 
         self.assertEquals(1, len(self.mock_sink.captured_records))
@@ -672,7 +718,7 @@ class NginxCollectdTest(TestCase):
         expected_record = MetricRecord('upstreams.health.checks.checks', 'counter', 0, self.plugin.instance_id,
                                          {'upstream.name' : 'trac-backend', 'upstream.peer.name' : '10.0.0.10:8080',
                                           'nginx.version' : '1.21.3'})
-        
+
         self.plugin._emit_upstreams_peer_metrics(metrics, self.mock_sink)
 
         self.assertEquals(1, len(self.mock_sink.captured_records))
@@ -683,7 +729,7 @@ class NginxCollectdTest(TestCase):
         expected_record = MetricRecord('upstreams.health.checks.fails', 'counter', 0, self.plugin.instance_id,
                                          {'upstream.name' : 'trac-backend', 'upstream.peer.name' : '10.0.0.10:8080',
                                           'nginx.version' : '1.21.3'})
-        
+
         self.plugin._emit_upstreams_peer_metrics(metrics, self.mock_sink)
 
         self.assertEquals(1, len(self.mock_sink.captured_records))
@@ -694,7 +740,7 @@ class NginxCollectdTest(TestCase):
         expected_record = MetricRecord('upstreams.health.checks.unhealthy', 'counter', 0, self.plugin.instance_id,
                                          {'upstream.name' : 'trac-backend', 'upstream.peer.name' : '10.0.0.10:8080',
                                           'nginx.version' : '1.21.3'})
-        
+
         self.plugin._emit_upstreams_peer_metrics(metrics, self.mock_sink)
 
         self.assertEquals(1, len(self.mock_sink.captured_records))
@@ -707,7 +753,7 @@ class NginxCollectdTest(TestCase):
                                          {'upstream.name' : 'trac-backend', 'upstream.peer.name' : '10.0.0.10:8080',
                                           'nginx.version' : '1.21.3'})
 
-        
+
 
         self.plugin._emit_upstreams_peer_metrics(metrics, self.mock_sink)
 
@@ -720,7 +766,7 @@ class NginxCollectdTest(TestCase):
                                          {'upstream.name' : 'trac-backend', 'upstream.peer.name' : '10.0.0.10:8080',
                                           'nginx.version' : '1.21.3'})
 
-        
+
 
         self.plugin._emit_upstreams_peer_metrics(metrics, self.mock_sink)
 
@@ -732,7 +778,7 @@ class NginxCollectdTest(TestCase):
         expected_record = MetricRecord('upstreams.downtime', 'counter', 0, self.plugin.instance_id,
                                          {'upstream.name' : 'trac-backend', 'upstream.peer.name' : '10.0.0.10:8080',
                                           'nginx.version' : '1.21.3'})
-        
+
         self.plugin._emit_upstreams_peer_metrics(metrics, self.mock_sink)
 
         self.assertEquals(1, len(self.mock_sink.captured_records))
@@ -743,7 +789,7 @@ class NginxCollectdTest(TestCase):
         expected_record = MetricRecord('upstreams.bytes.received', 'counter', 14253868039, self.plugin.instance_id,
                                          {'upstream.name' : 'trac-backend', 'upstream.peer.name' : '10.0.0.10:8080',
                                           'nginx.version' : '1.21.3'})
-        
+
         self.plugin._emit_upstreams_peer_metrics(metrics, self.mock_sink)
 
         self.assertEquals(1, len(self.mock_sink.captured_records))
@@ -754,7 +800,7 @@ class NginxCollectdTest(TestCase):
         expected_record = MetricRecord('upstreams.bytes.sent', 'counter', 56541432, self.plugin.instance_id,
                                          {'upstream.name' : 'trac-backend', 'upstream.peer.name' : '10.0.0.10:8080',
                                           'nginx.version' : '1.21.3'})
-        
+
         self.plugin._emit_upstreams_peer_metrics(metrics, self.mock_sink)
 
         self.assertEquals(1, len(self.mock_sink.captured_records))
@@ -764,7 +810,7 @@ class NginxCollectdTest(TestCase):
         metrics = [MetricDefinition('upstreams.keepalive', 'gauge', 'keepalive')]
         expected_record = MetricRecord('upstreams.keepalive', 'gauge', 0, self.plugin.instance_id,
                                          {'upstream.name' : 'trac-backend', 'nginx.version' : '1.21.3'})
-        
+
         self.plugin._emit_upstreams_metrics(metrics, self.mock_sink)
 
         self.assertEquals(1, len(self.mock_sink.captured_records))
@@ -774,7 +820,7 @@ class NginxCollectdTest(TestCase):
         metrics = [MetricDefinition('upstreams.zombies', 'gauge', 'zombies')]
         expected_record = MetricRecord('upstreams.zombies', 'gauge', 0, self.plugin.instance_id,
                                          {'upstream.name' : 'trac-backend', 'nginx.version' : '1.21.3'})
-        
+
         self.plugin._emit_upstreams_metrics(metrics, self.mock_sink)
 
         self.assertEquals(1, len(self.mock_sink.captured_records))
@@ -1444,6 +1490,17 @@ class NginxCollectdTest(TestCase):
         except Exception:
             pass
         return False
+
+    def _mocked_requests_get(self, *args, **kwargs):
+        class MockResponse:
+            def __init__(self, json_data, status_code):
+                self.json_data = json_data
+                self.status_code = status_code
+
+            def json(self):
+                return self.json_data
+
+        return MockResponse([1, 2, 3, 4, 5, 6, 7], 200)
 
 
 class MockMetricSink(object):

@@ -105,6 +105,7 @@ USERNAME = 'Username'
 PASSWORD = 'Password'
 DIMENSION = 'Dimension'
 DIMENSIONS = 'Dimensions' # Not publicly facing, used to support neo-agent auto-generated configs
+API_TYPE = 'APIType'
 
 # Metric group configuration flags
 SERVER_ZONE = 'ServerZone'
@@ -279,6 +280,7 @@ class NginxPlusPlugin(object):
 
         status_host = None
         status_port = None
+        api_type = None
         username = None
         password = None
 
@@ -289,6 +291,8 @@ class NginxPlusPlugin(object):
                 status_host = node.values[0]
             elif node.key == STATUS_PORT:
                 status_port = node.values[0]
+            elif node.key == API_TYPE and (node.values[0] is not None):
+                api_type = node.values[0].lower()
             elif node.key == USERNAME:
                 username = node.values[0]
             elif node.key == PASSWORD:
@@ -339,7 +343,7 @@ class NginxPlusPlugin(object):
         self.emitters.append(MetricEmitter(self._emit_cache_metrics, DEFAULT_CACHE_METRICS))
 
         self.sink = MetricSink()
-        self.nginx_agent = NginxStatusAgent(status_host, status_port, username, password)
+        self.nginx_agent = NginxStatusAgent(status_host, status_port, username, password, api_type)
 
         LOGGER.debug('Finished configuration. Will read status from %s:%s', status_host, status_port)
 
@@ -356,7 +360,9 @@ class NginxPlusPlugin(object):
 
         LOGGER.debug('Instance %s starting read', self.instance_id)
 
-        self._reload_ephemerial_global_dimensions()
+        self.nginx_agent.detect_api_type()
+
+        self._reload_ephemeral_global_dimensions()
 
         for emitter in self.emitters:
             emitter.emit(self.sink)
@@ -565,7 +571,7 @@ class NginxPlusPlugin(object):
                 updated_dims.update(self.global_dimensions)
                 sink.emit(MetricRecord(metric.name, metric.type, value, self.instance_id, updated_dims, time.time()))
 
-    def _reload_ephemerial_global_dimensions(self):
+    def _reload_ephemeral_global_dimensions(self):
         '''
         Reload any global dimensions that have the potential to change after configuration.
         '''
@@ -673,23 +679,17 @@ class NginxStatusAgent(object):
     '''
     Helper class for interacting with a single NGINX+ instance.
     '''
-    def __init__(self, status_host=None, status_port=None, username=None, password=None):
+    def __init__(self, status_host=None, status_port=None, username=None, password=None, api_type=None):
         self.status_host = status_host or 'localhost'
         self.status_port = status_port or 8080
         self.auth_tuple = (username, password) if username or password else None
+        self.api_type = None
 
-        self.base_status_url = 'http://{}:{}/api/7'.format(self.status_host, str(self.status_port))
-        self.nginx_metadata_url = '{}/nginx'.format(self.base_status_url)
-        self.caches_url = '{}/http/caches'.format(self.base_status_url)
-        self.server_zones_url = '{}/http/server_zones'.format(self.base_status_url)
-        self.upstreams_url = '{}/http/upstreams'.format(self.base_status_url)
-        self.stream_upstream_url = '{}/stream/upstreams'.format(self.base_status_url)
-        self.stream_server_zones_url = '{}/stream/server_zones'.format(self.base_status_url)
-        self.connections_url = '{}/connections'.format(self.base_status_url)
-        self.requests_url = '{}/http/requests'.format(self.base_status_url)
-        self.ssl_url = '{}/ssl'.format(self.base_status_url)
-        self.slabs_url = '{}/slabs'.format(self.base_status_url)
-        self.processes_url = '{}/processes'.format(self.base_status_url)
+        self.detect_api_type()
+        if api_type is not None and api_type != self.api_type:
+            raise ValueError("'{}' API is detected which is not the same as the input: '{}', Please provide correct API type".format(
+                self.api_type, api_type))
+        LOGGER.debug('Using %s API', self.api_type)
 
     def get_status(self):
         '''
@@ -726,27 +726,32 @@ class NginxStatusAgent(object):
         Fetch the version of nginx+.
         Note, this will only return the value, not a dict.
         '''
-        json_response = self._send_get(self.nginx_metadata_url)
-        if isinstance(json_response, dict):
-            return json_response.get('version', None)
-        
-        LOGGER.error("Unexpected response of type: %s from %s", type(json_response), self.nginx_metadata_url)
+        if self.api_type == "newer":
+            json_response = self._send_get(self.nginx_metadata_url)
+            if isinstance(json_response, dict):
+                return json_response.get('version', None)
 
-        return None
-        
+            LOGGER.error("Unexpected response of type: %s from %s", type(json_response), self.nginx_metadata_url)
+
+            return None
+        else:
+            return self._send_get(self.nginx_version_url)
 
     def get_nginx_address(self):
         '''
         Fetch the address of the nginx+ instance.
         Note, this will only return the value, not a dict.
         '''
-        json_response = self._send_get(self.nginx_metadata_url)
-        if isinstance(json_response, dict):
-            return json_response.get('address', None)
-        
-        LOGGER.error("Unexpected response of type: %s from %s", type(json_response), self.nginx_metadata_url)
+        if self.api_type == "newer":
+            json_response = self._send_get(self.nginx_metadata_url)
+            if isinstance(json_response, dict):
+                return json_response.get('address', None)
 
-        return None
+            LOGGER.error("Unexpected response of type: %s from %s", type(json_response), self.nginx_metadata_url)
+
+            return None
+        else:
+            return self._send_get(self.address_url)
 
     def get_caches(self):
         '''
@@ -784,6 +789,25 @@ class NginxStatusAgent(object):
         '''
         return self._send_get(self.processes_url)
 
+    def detect_api_type(self):
+        '''
+        Detects the API type of the Nginx-plus(Newer or Legacy) and initialize the endpoints accordingly
+        '''
+        detected_api_type = self._get_api_type()
+        if self.api_type is not None:
+            if detected_api_type == self.api_type:
+                return
+            else:
+                LOGGER.warning('api type change detected, using \'%s\' API', detected_api_type)
+
+        self.api_type = detected_api_type
+        if self.api_type == "newer":
+            self._initialize_newer_api_url()
+        elif self.api_type == "legacy":
+            self._initialize_legacy_api_url()
+        else:
+            raise ValueError("Unable to identify the API type")
+
     def _send_get(self, url):
         '''
         Performs a GET against the given url.
@@ -798,6 +822,72 @@ class NginxStatusAgent(object):
         except RequestException as e:
             LOGGER.exception('Failed request to %s. %s', self.base_status_url, e)
         return status
+
+    def _get_api_type(self):
+        '''
+        Determines whether the Nginx-plus plugin has a 'newer' or 'legacy' version of API.
+        '''
+        legacy_api_url = 'http://{}:{}/status'.format(self.status_host, str(self.status_port))
+        newer_api_url = 'http://{}:{}/api/'.format(self.status_host, str(self.status_port))
+
+        try:
+            response = requests.get(newer_api_url, auth=self.auth_tuple)
+            if response.status_code == requests.codes.ok:
+                return "newer"
+            else:
+                response = requests.get(legacy_api_url, auth=self.auth_tuple)
+                if response.status_code == requests.codes.ok:
+                    return "legacy"
+            LOGGER.error(
+                "failed to detect the Nginx-plus 'api_type', Please provide api_type. Refer to the readme for more info.")
+        except RequestException as e:
+            LOGGER.exception("failed to detect the Nginx-plus 'api_type' due to the error: %s", e)
+
+    def _initialize_newer_api_url(self):
+        '''
+        Initialize the newer API URL
+        '''
+        base_url = 'http://{}:{}/api/'.format(self.status_host, str(self.status_port))
+        supported_api_versions = self._send_get(base_url)
+
+        if not isinstance(supported_api_versions, list):
+            raise ValueError("failed to get the supported API versions")
+
+        if len(supported_api_versions) == 0:
+            raise ValueError("unable to find any supported API version")
+
+        LOGGER.debug('Using api version %s', str(supported_api_versions[-1]))
+
+        self.base_status_url = '{}{}'.format(base_url, str(supported_api_versions[-1]))
+        self.nginx_metadata_url = '{}/nginx'.format(self.base_status_url)
+        self.caches_url = '{}/http/caches'.format(self.base_status_url)
+        self.server_zones_url = '{}/http/server_zones'.format(self.base_status_url)
+        self.upstreams_url = '{}/http/upstreams'.format(self.base_status_url)
+        self.stream_upstream_url = '{}/stream/upstreams'.format(self.base_status_url)
+        self.stream_server_zones_url = '{}/stream/server_zones'.format(self.base_status_url)
+        self.connections_url = '{}/connections'.format(self.base_status_url)
+        self.requests_url = '{}/http/requests'.format(self.base_status_url)
+        self.ssl_url = '{}/ssl'.format(self.base_status_url)
+        self.slabs_url = '{}/slabs'.format(self.base_status_url)
+        self.processes_url = '{}/processes'.format(self.base_status_url)
+
+    def _initialize_legacy_api_url(self):
+        '''
+        Initialize the legacy API URL
+        '''
+        self.base_status_url = 'http://{}:{}/status'.format(self.status_host, str(self.status_port))
+        self.nginx_version_url = '{}/nginx_version'.format(self.base_status_url)
+        self.address_url = '{}/address'.format(self.base_status_url)
+        self.caches_url = '{}/caches'.format(self.base_status_url)
+        self.server_zones_url = '{}/server_zones'.format(self.base_status_url)
+        self.upstreams_url = '{}/upstreams'.format(self.base_status_url)
+        self.stream_upstream_url = '{}/stream/upstreams'.format(self.base_status_url)
+        self.stream_server_zones_url = '{}/stream/server_zones'.format(self.base_status_url)
+        self.connections_url = '{}/connections'.format(self.base_status_url)
+        self.requests_url = '{}/requests'.format(self.base_status_url)
+        self.ssl_url = '{}/ssl'.format(self.base_status_url)
+        self.slabs_url = '{}/slabs'.format(self.base_status_url)
+        self.processes_url = '{}/processes'.format(self.base_status_url)
 
 
 class CollectdLogHandler(logging.Handler):
@@ -946,11 +1036,13 @@ LOGGER.addHandler(log_handler)
 if __name__ == '__main__':
     cli_status_host = sys.argv[1] if len(sys.argv) > 1 else 'demo.nginx.com'
     cli_status_port = sys.argv[2] if len(sys.argv) > 2 else 80
+    api_type = sys.argv[3] if len(sys.argv) > 3 else None
 
     collectd = CollectdMock()
 
     mock_config_ip_child = CollectdConfigChildMock(STATUS_HOST, [cli_status_host])
     mock_config_port_child = CollectdConfigChildMock(STATUS_PORT, [cli_status_port])
+    mock_config_api_type = CollectdConfigChildMock(API_TYPE, [api_type])
     mock_config_debug_log_level = CollectdConfigChildMock(DEBUG_LOG_LEVEL, ['true'])
 
     mock_config_username = CollectdConfigChildMock(USERNAME, ['user1'])
@@ -970,6 +1062,7 @@ if __name__ == '__main__':
 
     mock_config = CollectdConfigMock([mock_config_ip_child,
                                       mock_config_port_child,
+                                      mock_config_api_type,
                                       mock_config_debug_log_level,
                                       mock_config_server_zone_child,
                                       mock_config_memory_zone_child,

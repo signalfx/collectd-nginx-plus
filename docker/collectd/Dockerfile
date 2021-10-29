@@ -14,11 +14,12 @@ ADD 20-nginx-plus.conf /etc/collectd.d/managed_config/
 
 # Install pip
 RUN apt-get update
-RUN apt-get install python-pip python-dev build-essential
-RUN pip install --upgrade pip
+RUN apt-get install python2.7 -y
+RUN wget -P ~/.local/lib https://bootstrap.pypa.io/pip/2.7/get-pip.py
+RUN python2.7 ~/.local/lib/get-pip.py
 
 # Install the Python dependencies
-RUN pip install -r /opt/collectd-nginx-plus/install_requirements.txt
+RUN python2.7 -m pip install -r /opt/collectd-nginx-plus/install_requirements.txt
 
 # Add the simple server that will keep the container alive
 ADD 20-server.py /opt/setup/scripts
@@ -26,7 +27,7 @@ RUN chmod +x /opt/setup/scripts/20-server.py
 
 # Install the keepalive server Python dependencies
 ADD requirements.txt ./
-RUN pip install -r requirements.txt
+RUN python2.7 -m pip install -r requirements.txt
 
 # Expose a port for the keepalive server
 EXPOSE 5000
