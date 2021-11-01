@@ -22,19 +22,19 @@ The available configuration options are detailed below.
 |:--------|:-----------|
 | StatusHost | IP address or DNS of the NGINX+ instance to retrieve status information from. Defaults to `localhost`. |
 | StatusPort | Port the NGINX+ status endpoint can be reached at. Defaults to `8080`. |
-| APIType | API Type of the Nginx-plus(`legacy` or `newer`). Detects the type by Default. (see below) |
+| APIType | API Type of the NGINX+(`legacy` or `newer`). Detects the type by Default. (see below) |
 | DebugLogLevel | Enable logging at DEBUG level. |
 | Username | Username to use for username/password authentication. |
 | Password | Password to use for username/password authentication. |
 | Dimension | A single additional dimension decorating to each metric. There are two values, the first for the name, the second for the value. |
 
-##### Nginx-plus API Type
+##### NGINX Plus API Type
 
-The following points can be used to determine the API type of Nginx-plus:
+The following points can be used to determine the API type of NGINX+:
 
-- For the Nginx-plus version `R16` and above the API type is `newer`
-- For the Nginx-plus version `R12` and below the API type is `legacy`
-- For the Nginx-plus version between `R13` and `R15` (both inclusive) both API type is supported but only one can be enabled:
+- For the NGINX+ version `R16` and above the API type is `newer`
+- For the NGINX+ version `R12` and below the API type is `legacy`
+- For the NGINX+ version between `R13` and `R15` (both inclusive) both API type is supported but only one can be enabled:
   - If `/api/` endpoint is enabled then the `newer` API is enabled.
   - if `/status` endpoint is enabled then the `legacy` API is enabled.
 

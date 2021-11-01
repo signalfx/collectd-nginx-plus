@@ -44,7 +44,9 @@ services:
       - REQ_PER_SEC=5
 
   collectd:
-    build: ./collectd
+    build:
+      context: ../../
+      dockerfile: ./collectd-nginx-plus/docker/collectd/Dockerfile
     image: collectd_and_plugin
     depends_on:
       - nginx_plus_server
