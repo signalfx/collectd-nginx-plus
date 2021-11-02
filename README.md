@@ -22,21 +22,12 @@ The available configuration options are detailed below.
 |:--------|:-----------|
 | StatusHost | IP address or DNS of the NGINX+ instance to retrieve status information from. Defaults to `localhost`. |
 | StatusPort | Port the NGINX+ status endpoint can be reached at. Defaults to `8080`. |
-| APIType | API Type of the NGINX+(`legacy` or `newer`). Detects the type by Default. (see below) |
+| LegacyAPI | Indicate whether the NGINX+ is using `legacy` API or not. |
+| APIVersion | API version to use for fetching data. Not applicable to the `legacy` versions of NGINX+. Defaults to `3`. |
 | DebugLogLevel | Enable logging at DEBUG level. |
 | Username | Username to use for username/password authentication. |
 | Password | Password to use for username/password authentication. |
 | Dimension | A single additional dimension decorating to each metric. There are two values, the first for the name, the second for the value. |
-
-##### NGINX Plus API Type
-
-The following points can be used to determine the API type of NGINX+:
-
-- For the NGINX+ version `R16` and above the API type is `newer`
-- For the NGINX+ version `R12` and below the API type is `legacy`
-- For the NGINX+ version between `R13` and `R15` (both inclusive) both API type is supported but only one can be enabled:
-  - If `/api/` endpoint is enabled then the `newer` API is enabled.
-  - if `/status` endpoint is enabled then the `legacy` API is enabled.
 
 Example addition to the collectd configuration:
 
@@ -50,7 +41,7 @@ LoadPlugin python
   <Module nginx_plus_collectd>
     StatusHost "localhost"
     StatusPort "8080"
-    APIType "newer"
+    APIVersion 5
     DebugLogLevel true
     Username "user_1"
     Password "my_password"

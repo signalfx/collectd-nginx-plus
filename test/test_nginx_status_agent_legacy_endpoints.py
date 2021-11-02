@@ -158,13 +158,35 @@ class NginxStatusAgentTest(TestCase):
         self.assertEquals(self.agent.api_type, "legacy")
 
     @patch('requests.get')
-    def test_api_type_incorrect_input(self, mock_requests_get):
+    def test_legacy_api_input_none(self, mock_requests_get):
+        mock_requests_get.side_effect = _mocked_requests_get
+
+        agent = NginxStatusAgent(self.status_host, self.status_port)
+
+        self.assertEquals(agent.api_type, "legacy")
+
+    @patch('requests.get')
+    def test_legacy_api_input_true(self, mock_requests_get):
+        mock_requests_get.side_effect = _mocked_requests_get
+
+        agent = NginxStatusAgent(self.status_host, self.status_port, legacy_api=True)
+        self.assertEquals(agent.api_type, "legacy")
+
+    @patch('requests.get')
+    def test_legacy_api_input_false(self, mock_requests_get):
         mock_requests_get.side_effect = _mocked_requests_get
 
         with self.assertRaises(ValueError) as value_error:
-            _ = NginxStatusAgent(self.status_host, self.status_port, api_type="newer")
-        self.assertEquals(value_error.exception.message,
-                          "'legacy' API is detected which is not the same as the input: 'newer', Please provide correct API type")
+            _ = NginxStatusAgent(self.status_host, self.status_port, legacy_api=False)
+        self.assertEquals(value_error.exception.message, "'legacy' API is detected, Please provide correct input")
+
+    @patch('requests.get')
+    def test_legacy_api_input_true_and_api_version(self, mock_requests_get):
+        mock_requests_get.side_effect = _mocked_requests_get
+
+        with self.assertRaises(ValueError) as value_error:
+            _ = NginxStatusAgent(self.status_host, self.status_port, legacy_api=True, api_version=4)
+        self.assertEquals(value_error.exception.message, "'API Version' configuration option is not supported in the legacy APIs")
 
     @patch('requests.get')
     def test_get_api_type_legacy(self, mock_requests_get):
