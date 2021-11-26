@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import random
 import string
+from sys import api_version
 from unittest import TestCase
 from requests import HTTPError
 from mock import Mock, patch, MagicMock
@@ -13,9 +14,10 @@ class NginxStatusAgentTest(TestCase):
 
         self.status_host = _random_string()
         self.status_port = _random_int()
+        self.api_version = 0
         self.base_status_url = 'http://{}:{}/status'.format(self.status_host, str(self.status_port))
 
-        self.agent = NginxStatusAgent(self.status_host, self.status_port)
+        self.agent = NginxStatusAgent(self.status_host, self.status_port, api_version=self.api_version)
 
     @patch('requests.get')
     def test_return_json_on_ok_status(self, mock_requests_get):
@@ -137,7 +139,7 @@ class NginxStatusAgentTest(TestCase):
         password = _random_string()
         auth_tuple = (username, password)
 
-        auth_agent = NginxStatusAgent(self.status_host, self.status_port, username, password)
+        auth_agent = NginxStatusAgent(self.status_host, self.status_port, username, password, self.api_version)
 
         auth_agent.get_status()
         mock_requests_get.assert_called_with(self.base_status_url, auth=auth_tuple)
@@ -149,51 +151,25 @@ class NginxStatusAgentTest(TestCase):
         self.agent.get_processes()
         mock_requests_get.assert_called_with(expected_url, auth=None)
 
-    def test_detect_api_type_legacy(self):
-        self.agent._get_api_type = MagicMock(return_value="legacy")
-        self.agent._initialize_legacy_api_url = MagicMock(return_value=None)
-        self.agent.api_type = "newer"
-
-        self.agent.detect_api_type()
-        self.assertEquals(self.agent.api_type, "legacy")
-
     @patch('requests.get')
-    def test_legacy_api_input_none(self, mock_requests_get):
+    def test_non_default_api_base_path(self, mock_requests_get):
         mock_requests_get.side_effect = _mocked_requests_get
 
-        agent = NginxStatusAgent(self.status_host, self.status_port)
+        agent = NginxStatusAgent(self.status_host, self.status_port, api_version=0, api_base_path='/test')
+        self.assertEquals(agent.api_base_path, '/test')
 
-        self.assertEquals(agent.api_type, "legacy")
-
-    @patch('requests.get')
-    def test_legacy_api_input_true(self, mock_requests_get):
-        mock_requests_get.side_effect = _mocked_requests_get
-
-        agent = NginxStatusAgent(self.status_host, self.status_port, legacy_api=True)
-        self.assertEquals(agent.api_type, "legacy")
+    def test_default_api_base_path(self):
+        agent = NginxStatusAgent(self.status_host, self.status_port, api_version=0)
+        self.assertEquals(agent.api_base_path, '/status')
 
     @patch('requests.get')
-    def test_legacy_api_input_false(self, mock_requests_get):
+    def test_invalid_api_base_path_initialization(self, mock_requests_get):
         mock_requests_get.side_effect = _mocked_requests_get
+        expected_base_path_url = "http://{}:{}test".format(self.status_host, self.status_port)
 
-        with self.assertRaises(ValueError) as value_error:
-            _ = NginxStatusAgent(self.status_host, self.status_port, legacy_api=False)
-        self.assertEquals(value_error.exception.message, "'legacy' API is detected, Please provide correct input")
-
-    @patch('requests.get')
-    def test_legacy_api_input_true_and_api_version(self, mock_requests_get):
-        mock_requests_get.side_effect = _mocked_requests_get
-
-        with self.assertRaises(ValueError) as value_error:
-            _ = NginxStatusAgent(self.status_host, self.status_port, legacy_api=True, api_version=4)
-        self.assertEquals(value_error.exception.message, "'API Version' configuration option is not supported in the legacy APIs")
-
-    @patch('requests.get')
-    def test_get_api_type_legacy(self, mock_requests_get):
-        mock_requests_get.side_effect = _mocked_requests_get
-
-        actual_api_type = self.agent._get_api_type()
-        self.assertEquals(actual_api_type, "legacy")
+        agent = NginxStatusAgent(self.status_host, self.status_port, api_version=0, api_base_path='test')
+        agent._initialize_legacy_api_urls()
+        self.assertEquals(agent.base_status_url, expected_base_path_url)
 
     @patch('requests.get')
     def test_initialize_legacy_api_url(self, mock_requests_get):
@@ -211,7 +187,7 @@ class NginxStatusAgentTest(TestCase):
         self.slabs_url = '{}/slabs'.format(self.base_status_url)
         self.processes_url = '{}/processes'.format(self.base_status_url)
 
-        self.agent._initialize_legacy_api_url()
+        self.agent._initialize_legacy_api_urls()
         self.assertEquals(self.nginx_version_url, self.agent.nginx_version_url)
         self.assertEquals(self.address_url, self.agent.address_url)
         self.assertEquals(self.caches_url, self.agent.caches_url)
@@ -240,7 +216,4 @@ def _mocked_requests_get(*args, **kwargs):
         def json(self):
             return self.json_data
 
-    if '/status' in args[0]:
-        return MockResponse(None, 200)
-
-    return MockResponse(None, 404)
+    return MockResponse(None, 200)

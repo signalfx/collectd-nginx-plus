@@ -4,7 +4,7 @@ import string
 from unittest import TestCase
 from requests import HTTPError
 from mock import Mock, patch, MagicMock
-from plugin.nginx_plus_collectd import NginxStatusAgent
+from plugin.nginx_plus_collectd import NginxStatusAgent, DEFAULT_API_VERSION
 
 class NginxStatusAgentTest(TestCase):
     @patch('requests.get')
@@ -149,44 +149,20 @@ class NginxStatusAgentTest(TestCase):
         self.agent.get_processes()
         mock_requests_get.assert_called_with(expected_url, auth=None)
 
-    def test_detect_api_type_newer(self):
-        self.agent._get_api_type = MagicMock(return_value="newer")
-        self.agent._initialize_newer_api_url = MagicMock(return_value=None)
-        self.agent.api_type = "legacy"
-
-        self.agent.detect_api_type()
-        self.assertEquals(self.agent.api_type, "newer")
-
-    def test_detect_api_type_none(self):
-        self.agent._get_api_type = MagicMock(return_value=None)
-        self.agent.api_type = None
-
-        with self.assertRaises(ValueError) as value_error:
-            self.agent.detect_api_type()
-        self.assertEquals(value_error.exception.message, 'Unable to identify the API type')
-
     @patch('requests.get')
-    def test_legacy_api_input_true(self, mock_requests_get):
-        mock_requests_get.side_effect = _mocked_requests_get
-
-        with self.assertRaises(ValueError) as value_error:
-            _ = NginxStatusAgent(self.status_host, self.status_port, legacy_api=True)
-        self.assertEquals(value_error.exception.message, "'newer' API is detected, Please provide correct input")
-
-
-    @patch('requests.get')
-    def test_legacy_api_input_false(self, mock_requests_get):
-        mock_requests_get.side_effect = _mocked_requests_get
-
-        agent = NginxStatusAgent(self.status_host, self.status_port, legacy_api=False)
-        self.assertEquals(agent.api_version, 3)
-
-    @patch('requests.get')
-    def test_legacy_api_input_None(self, mock_requests_get):
+    def test_api_version_and_api_base_path_input_None(self, mock_requests_get):
         mock_requests_get.side_effect = _mocked_requests_get
 
         agent = NginxStatusAgent(self.status_host, self.status_port)
-        self.assertEquals(agent.api_version, 3)
+        self.assertEquals(agent.api_version, DEFAULT_API_VERSION)
+        self.assertEquals(agent.api_base_path, '/api')
+
+    @patch('requests.get')
+    def test_non_default_api_base_path(self, mock_requests_get):
+        mock_requests_get.side_effect = _mocked_requests_get
+
+        agent = NginxStatusAgent(self.status_host, self.status_port, api_base_path='/test')
+        self.assertEquals(agent.api_base_path, '/test')
 
     @patch('requests.get')
     def test_api_version(self, mock_requests_get):
@@ -194,44 +170,46 @@ class NginxStatusAgentTest(TestCase):
 
         agent = NginxStatusAgent(self.status_host, self.status_port, api_version=6)
         self.assertEquals(agent.api_version, 6)
-
-    @patch('requests.get')
-    def test_get_api_type_none_with_error(self, mock_requests_get):
-        mock_response = Mock()
-        mock_response.status_code = 404
-        mock_requests_get.return_value = mock_response
-
-        actual_api_type = self.agent._get_api_type()
-        self.assertIsNone(actual_api_type)
-
-    @patch('requests.get')
-    def test_get_api_type_none_with_exception(self, mock_requests_get):
-        mock_requests_get.side_effect = HTTPError('Thrown from test_get_api_type_none_with_exception')
-
-        actual_api_type = self.agent._get_api_type()
-        self.assertIsNone(actual_api_type)
-
-    @patch('requests.get')
-    def test_get_api_type_newer(self, mock_requests_get):
-        mock_requests_get.side_effect = _mocked_requests_get
-
-        actual_api_type = self.agent._get_api_type()
-        self.assertEquals(actual_api_type, "newer")
+        self.assertEquals(agent.api_base_path, '/api')
 
     def test_initialize_newer_api_url_error_getting_api_version(self):
         self.agent._send_get = MagicMock(return_value=None)
 
         with self.assertRaises(ValueError) as value_error:
-            self.agent._initialize_newer_api_url()
-        self.assertEquals(value_error.exception.message, "failed to get the supported API versions")
+            self.agent._initialize_newer_api_urls()
+        self.assertEquals(value_error.exception.message, "Failed to get the supported API versions")
 
     def test_initialize_newer_api_url_error_no_api_version_found(self):
         self.agent._send_get = MagicMock(return_value=[1, 2, 3])
         self.agent.api_version = 4
 
         with self.assertRaises(ValueError) as value_error:
-            self.agent._initialize_newer_api_url()
-        self.assertEquals(value_error.exception.message, "unable to find the API version '4' in the supported API versions")
+            self.agent._initialize_newer_api_urls()
+        self.assertEquals(value_error.exception.message, "Unable to find the API version '4' in the supported API versions: [1, 2, 3]")
+
+    def test_validate_nginx_version_none(self):
+        self.agent.get_nginx_version = MagicMock(return_value=None)
+
+        with self.assertRaises(ValueError) as value_error:
+            self.agent.validate_nginx_version()
+        self.assertEquals(value_error.exception.message, "Unable to get the Nginx version")
+
+    def test_validate_nginx_version_change(self):
+        self.agent.get_nginx_version = MagicMock(return_value="1.13.10")
+        self.agent.nginx_version = "1.15.2"
+
+        with self.assertRaises(ValueError) as value_error:
+            self.agent.validate_nginx_version()
+        self.assertEquals(value_error.exception.message, "Nginx version change detected from 1.15.2 to 1.13.10")
+
+    @patch('requests.get')
+    def test_invalid_api_base_path_initialization(self, mock_requests_get):
+        mock_requests_get.side_effect = _mocked_requests_get
+        expected_base_path_url = "http://{}:{}test/{}".format(self.status_host, self.status_port, DEFAULT_API_VERSION)
+
+        agent = NginxStatusAgent(self.status_host, self.status_port, api_base_path='test')
+        agent._initialize_newer_api_urls()
+        self.assertEquals(agent.base_status_url, expected_base_path_url)
 
     def test_initialize_newer_api_url(self):
         self.agent._send_get = MagicMock(return_value=[1, 2, 3, 4, 5, 6, 7])
@@ -247,7 +225,7 @@ class NginxStatusAgentTest(TestCase):
         self.slabs_url = '{}/slabs'.format(self.base_status_url)
         self.processes_url = '{}/processes'.format(self.base_status_url)
 
-        self.agent._initialize_newer_api_url()
+        self.agent._initialize_newer_api_urls()
         self.assertEquals(self.nginx_metadata_url, self.agent.nginx_metadata_url)
         self.assertEquals(self.caches_url, self.agent.caches_url)
         self.assertEquals(self.server_zones_url, self.agent.server_zones_url)
@@ -276,7 +254,5 @@ def _mocked_requests_get(*args, **kwargs):
         def json(self):
             return self.json_data
 
-    if '/api/' in args[0]:
-        return MockResponse([1, 2, 3, 4, 5, 6, 7], 200)
 
-    return MockResponse(None, 404)
+    return MockResponse([1, 2, 3, 4, 5, 6, 7], 200)

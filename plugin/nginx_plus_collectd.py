@@ -97,7 +97,7 @@ class MetricSink(object):
         '''
         return ','.join(['='.join((key.replace('.', '_'), value)) for key, value in dimensions.iteritems()])
 
-# Server configueration flags
+# Server configuration flags
 STATUS_HOST = 'StatusHost'
 STATUS_PORT = 'StatusPort'
 DEBUG_LOG_LEVEL = 'DebugLogLevel'
@@ -105,8 +105,8 @@ USERNAME = 'Username'
 PASSWORD = 'Password'
 DIMENSION = 'Dimension'
 DIMENSIONS = 'Dimensions' # Not publicly facing, used to support neo-agent auto-generated configs
-LEGACY_API = 'LegacyAPI'
 API_VERSION = 'APIVersion'
+API_BASE_PATH = 'APIBasePath'
 
 # Metric group configuration flags
 SERVER_ZONE = 'ServerZone'
@@ -116,6 +116,9 @@ CACHE = 'Cache'
 STREAM_SERVER_ZONE = 'StreamServerZone'
 STREAM_UPSTREAM = 'StreamUpstream'
 PROCESSES = 'Processes'
+
+# Constants
+DEFAULT_API_VERSION = 3
 
 # Metric groups
 DEFAULT_CONNECTION_METRICS = [
@@ -283,10 +286,10 @@ class NginxPlusPlugin(object):
         status_port = None
         username = None
         password = None
-        legacy_api = None
         api_version = None
+        api_base_path = None
 
-        # Iterate the configueration values, pickup the status endpoint info
+        # Iterate the configuration values, pickup the status endpoint info
         # and create any specified opt-in metric emitters
         for node in conf.children:
             if node.key == STATUS_HOST:
@@ -297,13 +300,21 @@ class NginxPlusPlugin(object):
                 username = node.values[0]
             elif node.key == PASSWORD:
                 password = node.values[0]
-            elif node.key == LEGACY_API:
-                legacy_api = self._str_to_bool(node.values[0])
             elif node.key == API_VERSION:
+                err_msg = "{err}, please provide a valid positive integer value for the APIVersion"
                 try:
                     api_version = int(node.values[0])
-                except ValueError:
-                    print 'Please provide an interger in API version'
+
+                    if api_version < 0:
+                        raise ValueError("Invalid value found")
+                except ValueError as ve:
+                    raise ValueError(err_msg.format(err=ve))
+                except TypeError as te:
+                    raise TypeError(err_msg.format(err=te))
+                except Exception as e:
+                    raise Exception(err_msg.format(err=e))
+            elif node.key == API_BASE_PATH:
+                    api_base_path = node.values[0]
             elif node.key == DIMENSIONS:
                 # The DIMENSIONS configuration property used to include dimensions represented as single string
                 # in the format: key_1=value-1,key_2=value_2
@@ -350,7 +361,7 @@ class NginxPlusPlugin(object):
         self.emitters.append(MetricEmitter(self._emit_cache_metrics, DEFAULT_CACHE_METRICS))
 
         self.sink = MetricSink()
-        self.nginx_agent = NginxStatusAgent(status_host, status_port, username, password, legacy_api, api_version)
+        self.nginx_agent = NginxStatusAgent(status_host, status_port, username, password, api_version, api_base_path)
 
         LOGGER.debug('Finished configuration. Will read status from %s:%s', status_host, status_port)
 
@@ -367,7 +378,7 @@ class NginxPlusPlugin(object):
 
         LOGGER.debug('Instance %s starting read', self.instance_id)
 
-        self.nginx_agent.detect_api_type()
+        self.nginx_agent.validate_nginx_version()
 
         self._reload_ephemeral_global_dimensions()
 
@@ -686,22 +697,28 @@ class NginxStatusAgent(object):
     '''
     Helper class for interacting with a single NGINX+ instance.
     '''
-    def __init__(self, status_host=None, status_port=None, username=None, password=None, legacy_api=None, api_version=None):
+    def __init__(self, status_host=None, status_port=None, username=None, password=None, api_version=None, api_base_path=None):
         self.status_host = status_host or 'localhost'
         self.status_port = status_port or 8080
         self.auth_tuple = (username, password) if username or password else None
-        self.api_type = None
-        self.api_version = api_version if api_version is not None else 3
+        self.api_version = api_version if api_version is not None else DEFAULT_API_VERSION
+        self.api_base_path = api_base_path
 
-        self.detect_api_type()
-        if legacy_api:
-            if self.api_type != 'legacy':
-                raise ValueError("'newer' API is detected, Please provide correct input")
-            if api_version is not None:
-                raise ValueError("'API Version' configuration option is not supported in the legacy APIs")
+        # set the default path in case of no user input
+        if api_base_path is None:
+            if self.api_version == 0:
+                self.api_base_path = "/status"
+            else:
+                self.api_base_path = "/api"
 
-        if legacy_api is False and self.api_type == 'legacy':
-            raise ValueError("'legacy' API is detected, Please provide correct input")
+        # initialize the API URLs as per the API type(legacy or newer)
+        if self.api_version == 0:
+            self._initialize_legacy_api_urls()
+        else:
+            self._initialize_newer_api_urls()
+
+        # save the initial version to detect the version change at run time
+        self.nginx_version = self.get_nginx_version()
 
     def get_status(self):
         '''
@@ -738,7 +755,10 @@ class NginxStatusAgent(object):
         Fetch the version of nginx+.
         Note, this will only return the value, not a dict.
         '''
-        if self.api_type == "newer":
+        # The 'if' block will only execute if 'self.api_version' is non-zero and
+        # positive integer(i.e. for newer versions of API)
+        # Note: 'self.api_version' will never be negative at this stage
+        if self.api_version:
             json_response = self._send_get(self.nginx_metadata_url)
             if isinstance(json_response, dict):
                 return json_response.get('version', None)
@@ -746,15 +766,18 @@ class NginxStatusAgent(object):
             LOGGER.error("Unexpected response of type: %s from %s", type(json_response), self.nginx_metadata_url)
 
             return None
-        else:
-            return self._send_get(self.nginx_version_url)
+
+        return self._send_get(self.nginx_version_url)
 
     def get_nginx_address(self):
         '''
         Fetch the address of the nginx+ instance.
         Note, this will only return the value, not a dict.
         '''
-        if self.api_type == "newer":
+        # The 'if' block will only execute if 'self.api_version' is non-zero and
+        # positive integer(i.e. for newer versions of API)
+        # Note: 'self.api_version' will never be negative at this stage
+        if self.api_version:
             json_response = self._send_get(self.nginx_metadata_url)
             if isinstance(json_response, dict):
                 return json_response.get('address', None)
@@ -762,8 +785,8 @@ class NginxStatusAgent(object):
             LOGGER.error("Unexpected response of type: %s from %s", type(json_response), self.nginx_metadata_url)
 
             return None
-        else:
-            return self._send_get(self.address_url)
+
+        return self._send_get(self.address_url)
 
     def get_caches(self):
         '''
@@ -801,24 +824,19 @@ class NginxStatusAgent(object):
         '''
         return self._send_get(self.processes_url)
 
-    def detect_api_type(self):
+    def validate_nginx_version(self):
         '''
-        Detects the API type of the Nginx-plus(Newer or Legacy) and initialize the endpoints accordingly
+        Detects the change in the Nginx version and raise an error in case of a version change or unable to get the version
         '''
-        detected_api_type = self._get_api_type()
-        if self.api_type is not None:
-            if detected_api_type == self.api_type:
-                return
-            else:
-                LOGGER.warning('api type change detected, using \'%s\' API', detected_api_type)
+        cur_nginx_version = self.get_nginx_version()
 
-        self.api_type = detected_api_type
-        if self.api_type == "newer":
-            self._initialize_newer_api_url()
-        elif self.api_type == "legacy":
-            self._initialize_legacy_api_url()
-        else:
-            raise ValueError("Unable to identify the API type")
+        if cur_nginx_version is None:
+            LOGGER.error('Unable to get the Nginx version')
+            raise ValueError("Unable to get the Nginx version")
+
+        if self.nginx_version != cur_nginx_version:
+            LOGGER.error('Nginx version change detected from %s to %s', self.nginx_version, cur_nginx_version)
+            raise ValueError("Nginx version change detected from {} to {}".format(self.nginx_version, cur_nginx_version))
 
     def _send_get(self, url):
         '''
@@ -835,41 +853,22 @@ class NginxStatusAgent(object):
             LOGGER.exception('Failed request to %s. %s', self.base_status_url, e)
         return status
 
-    def _get_api_type(self):
-        '''
-        Determines whether the Nginx-plus plugin has a 'newer' or 'legacy' version of API.
-        '''
-        legacy_api_url = 'http://{}:{}/status'.format(self.status_host, str(self.status_port))
-        newer_api_url = 'http://{}:{}/api/'.format(self.status_host, str(self.status_port))
-
-        try:
-            response = requests.get(newer_api_url, auth=self.auth_tuple)
-            if response.status_code == requests.codes.ok:
-                return "newer"
-            else:
-                response = requests.get(legacy_api_url, auth=self.auth_tuple)
-                if response.status_code == requests.codes.ok:
-                    return "legacy"
-            LOGGER.error(
-                "failed to detect the Nginx-plus 'api_type', Please provide api_type. Refer to the readme for more info.")
-        except RequestException as e:
-            LOGGER.exception("failed to detect the Nginx-plus 'api_type' due to the error: %s", e)
-        return None
-
-    def _initialize_newer_api_url(self):
+    def _initialize_newer_api_urls(self):
         '''
         Initialize the newer API URL
         '''
-        base_url = 'http://{}:{}/api/'.format(self.status_host, str(self.status_port))
-        supported_api_versions = self._send_get(base_url)
+        self.base_status_url = 'http://{}:{}{}/'.format(self.status_host, str(self.status_port), self.api_base_path)
+        supported_api_versions = self._send_get(self.base_status_url)
 
         if not isinstance(supported_api_versions, list):
-            raise ValueError("failed to get the supported API versions")
+            LOGGER.error('Failed to get the supported API versions')
+            raise ValueError("Failed to get the supported API versions")
 
         if self.api_version not in supported_api_versions:
-            raise ValueError("unable to find the API version '{}' in the supported API versions".format(self.api_version))
+            LOGGER.error('Unable to find the API version \'%s\' in the supported API versions: %s', self.api_version, supported_api_versions)
+            raise ValueError("Unable to find the API version '{}' in the supported API versions: {}".format(self.api_version, supported_api_versions))
 
-        self.base_status_url = '{}{}'.format(base_url, str(self.api_version))
+        self.base_status_url = '{}{}'.format(self.base_status_url, str(self.api_version))
         self.nginx_metadata_url = '{}/nginx'.format(self.base_status_url)
         self.caches_url = '{}/http/caches'.format(self.base_status_url)
         self.server_zones_url = '{}/http/server_zones'.format(self.base_status_url)
@@ -882,11 +881,11 @@ class NginxStatusAgent(object):
         self.slabs_url = '{}/slabs'.format(self.base_status_url)
         self.processes_url = '{}/processes'.format(self.base_status_url)
 
-    def _initialize_legacy_api_url(self):
+    def _initialize_legacy_api_urls(self):
         '''
         Initialize the legacy API URL
         '''
-        self.base_status_url = 'http://{}:{}/status'.format(self.status_host, str(self.status_port))
+        self.base_status_url = 'http://{}:{}{}'.format(self.status_host, str(self.status_port), self.api_base_path)
         self.nginx_version_url = '{}/nginx_version'.format(self.base_status_url)
         self.address_url = '{}/address'.format(self.base_status_url)
         self.caches_url = '{}/caches'.format(self.base_status_url)
@@ -1045,23 +1044,16 @@ LOGGER.propagate = False
 LOGGER.addHandler(log_handler)
 
 if __name__ == '__main__':
-    cli_status_host = sys.argv[1] if len(sys.argv) > 1 else 'demo.nginx.com'
-    cli_status_port = sys.argv[2] if len(sys.argv) > 2 else 80
-    input_arg = sys.argv[3] if len(sys.argv) > 3 else None
-    cli_legacy_api = None
-    cli_api_version = None
-
-    if input_arg.lower() in ['true', 'false']:
-        cli_legacy_api = input_arg.lower()
-    else:
-        cli_api_version = input_arg
+    kwargs = dict(arg.split('=') for arg in sys.argv[1:])
+    cli_status_host = kwargs['host'] if kwargs.get('host', None) else 'demo.nginx.com'
+    cli_status_port = kwargs['port'] if kwargs.get('port', None) else 80
+    cli_api_version = kwargs.get('api_version', None)
+    cli_api_base_path = kwargs.get('api_base_path', None)
 
     collectd = CollectdMock()
 
     mock_config_ip_child = CollectdConfigChildMock(STATUS_HOST, [cli_status_host])
     mock_config_port_child = CollectdConfigChildMock(STATUS_PORT, [cli_status_port])
-    mock_config_legacy_api = CollectdConfigChildMock(LEGACY_API, [cli_legacy_api])
-    mock_config_api_version = CollectdConfigChildMock(API_VERSION, [cli_api_version])
     mock_config_debug_log_level = CollectdConfigChildMock(DEBUG_LOG_LEVEL, ['true'])
 
     mock_config_username = CollectdConfigChildMock(USERNAME, ['user1'])
@@ -1069,6 +1061,7 @@ if __name__ == '__main__':
 
     mock_config_dimension = CollectdConfigChildMock(DIMENSION, ['foo', 'bar'])
     mock_config_dimensions = CollectdConfigChildMock(DIMENSIONS, ['bat=baz'])
+
 
     # Setup the mock config to enable all metric groups
     mock_config_server_zone_child = CollectdConfigChildMock(SERVER_ZONE, ['true'])
@@ -1079,22 +1072,30 @@ if __name__ == '__main__':
     mock_config_stream_upstream_child = CollectdConfigChildMock(STREAM_UPSTREAM, ['true'])
     mock_config_processes_child = CollectdConfigChildMock(PROCESSES, ['true'])
 
-    mock_config = CollectdConfigMock([mock_config_ip_child,
-                                      mock_config_port_child,
-                                      mock_config_legacy_api,
-                                      mock_config_api_version,
-                                      mock_config_debug_log_level,
-                                      mock_config_server_zone_child,
-                                      mock_config_memory_zone_child,
-                                      mock_config_upstream_child,
-                                      mock_config_cache_child,
-                                      mock_config_stream_server_zone_child,
-                                      mock_config_stream_upstream_child,
-                                      mock_config_username,
-                                      mock_config_password,
-                                      mock_config_dimension,
-                                      mock_config_dimensions,
-                                      mock_config_processes_child])
+    mock_config_input_list = [mock_config_ip_child,
+                                mock_config_port_child,
+                                mock_config_debug_log_level,
+                                mock_config_server_zone_child,
+                                mock_config_memory_zone_child,
+                                mock_config_upstream_child,
+                                mock_config_cache_child,
+                                mock_config_stream_server_zone_child,
+                                mock_config_stream_upstream_child,
+                                mock_config_username,
+                                mock_config_password,
+                                mock_config_dimension,
+                                mock_config_dimensions,
+                                mock_config_processes_child]
+
+    if cli_api_version is not None:
+        mock_config_api_version = CollectdConfigChildMock(API_VERSION, [cli_api_version])
+        mock_config_input_list.append(mock_config_api_version)
+
+    if cli_api_base_path is not None:
+        mock_config_api_base_path = CollectdConfigChildMock(API_BASE_PATH, [cli_api_base_path])
+        mock_config_input_list.append(mock_config_api_base_path)
+
+    mock_config = CollectdConfigMock(mock_config_input_list)
 
     plugin_manager = NginxPlusPluginManager()
     plugin_manager.config_callback(mock_config)
