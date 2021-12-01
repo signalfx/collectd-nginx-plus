@@ -161,8 +161,8 @@ class NginxStatusAgentTest(TestCase):
     def test_non_default_api_base_path(self, mock_requests_get):
         mock_requests_get.side_effect = _mocked_requests_get
 
-        agent = NginxStatusAgent(self.status_host, self.status_port, api_base_path='/test')
-        self.assertEquals(agent.api_base_path, '/test')
+        agent = NginxStatusAgent(self.status_host, self.status_port, api_base_path='/test/api')
+        self.assertEquals(agent.api_base_path, '/test/api')
 
     @patch('requests.get')
     def test_api_version(self, mock_requests_get):
@@ -203,13 +203,29 @@ class NginxStatusAgentTest(TestCase):
         self.assertEquals(value_error.exception.message, "Nginx version change detected from 1.15.2 to 1.13.10")
 
     @patch('requests.get')
+    def test_invalid_api_base_path(self, mock_requests_get):
+        mock_requests_get.side_effect = _mocked_requests_get
+
+        with self.assertRaises(ValueError) as value_error:
+            NginxStatusAgent(self.status_host, self.status_port, api_base_path='/invalid')
+        self.assertEquals(value_error.exception.message, "Failed to detect the Nginx-plus API type (versioned or legacy)")
+
+    @patch('requests.get')
     def test_invalid_api_base_path_initialization(self, mock_requests_get):
         mock_requests_get.side_effect = _mocked_requests_get
-        expected_base_path_url = "http://{}:{}test/{}".format(self.status_host, self.status_port, DEFAULT_API_VERSION)
+        expected_base_path_url = "http://{}:{}test/api/{}".format(self.status_host, self.status_port, DEFAULT_API_VERSION)
 
-        agent = NginxStatusAgent(self.status_host, self.status_port, api_base_path='test')
+        agent = NginxStatusAgent(self.status_host, self.status_port, api_base_path='test/api')
         agent._initialize_newer_api_urls()
         self.assertEquals(agent.base_status_url, expected_base_path_url)
+
+    @patch('requests.get')
+    def test_get_api_version(self, mock_requests_get):
+        mock_requests_get.side_effect = _mocked_requests_get
+        self.agent.api_base_path = None
+
+        api_version = self.agent._get_api_version()
+        self.assertEquals(DEFAULT_API_VERSION, api_version)
 
     def test_initialize_newer_api_url(self):
         self.agent._send_get = MagicMock(return_value=[1, 2, 3, 4, 5, 6, 7])
@@ -255,4 +271,7 @@ def _mocked_requests_get(*args, **kwargs):
             return self.json_data
 
 
-    return MockResponse([1, 2, 3, 4, 5, 6, 7], 200)
+    if '/api' in args[0]:
+        return MockResponse([1, 2, 3, 4, 5, 6, 7], 200)
+
+    return MockResponse(None, 404)

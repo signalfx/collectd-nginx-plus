@@ -701,18 +701,28 @@ class NginxStatusAgent(object):
         self.status_host = status_host or 'localhost'
         self.status_port = status_port or 8080
         self.auth_tuple = (username, password) if username or password else None
-        self.api_version = api_version if api_version is not None else DEFAULT_API_VERSION
+        self.api_version = api_version
         self.api_base_path = api_base_path
+
+        detected_api_version = self._get_api_version()
+        if detected_api_version is None:
+            raise ValueError("Failed to detect the Nginx-plus API type (versioned or legacy)")
+        if api_version is None:
+            if detected_api_version != 0:
+                self.api_version = detected_api_version
+        elif detected_api_version == 0:
+            LOGGER.error("Legacy type of Nginx-plus API detected, please remove 'APIVersion' config option")
+            raise ValueError("Legacy type of Nginx-plus API detected, please remove 'APIVersion' config option")
 
         # set the default path in case of no user input
         if api_base_path is None:
-            if self.api_version == 0:
+            if self.api_version is None:
                 self.api_base_path = "/status"
             else:
                 self.api_base_path = "/api"
 
         # initialize the API URLs as per the API type(legacy or newer)
-        if self.api_version == 0:
+        if self.api_version is None:
             self._initialize_legacy_api_urls()
         else:
             self._initialize_newer_api_urls()
@@ -758,7 +768,7 @@ class NginxStatusAgent(object):
         # The 'if' block will only execute if 'self.api_version' is non-zero and
         # positive integer(i.e. for newer versions of API)
         # Note: 'self.api_version' will never be negative at this stage
-        if self.api_version:
+        if self.api_version is not None:
             json_response = self._send_get(self.nginx_metadata_url)
             if isinstance(json_response, dict):
                 return json_response.get('version', None)
@@ -777,7 +787,7 @@ class NginxStatusAgent(object):
         # The 'if' block will only execute if 'self.api_version' is non-zero and
         # positive integer(i.e. for newer versions of API)
         # Note: 'self.api_version' will never be negative at this stage
-        if self.api_version:
+        if self.api_version is not None:
             json_response = self._send_get(self.nginx_metadata_url)
             if isinstance(json_response, dict):
                 return json_response.get('address', None)
@@ -823,6 +833,28 @@ class NginxStatusAgent(object):
         Fetch the processes status summary.
         '''
         return self._send_get(self.processes_url)
+
+    def _get_api_version(self):
+        '''
+        Determines whether the Nginx-plus plugin has a versioned API or legacy API.
+        '''
+        newer_api_base_path = self.api_base_path if self.api_base_path is not None else '/api'
+        legacy_api_base_path = self.api_base_path if self.api_base_path is not None else '/status'
+        base_url = 'http://{}:{}'.format(self.status_host, str(self.status_port))
+
+        try:
+            response = requests.get("{}{}/{}".format(base_url, newer_api_base_path, DEFAULT_API_VERSION), auth=self.auth_tuple)
+            if response.status_code == requests.codes.ok:
+                return DEFAULT_API_VERSION
+            else:
+                response = requests.get("{}{}".format(base_url, legacy_api_base_path), auth=self.auth_tuple)
+                if response.status_code == requests.codes.ok:
+                    return 0
+            LOGGER.error(
+                "Failed to detect the Nginx-plus API type (versioned or legacy), please check your input configuration.")
+        except RequestException as e:
+            LOGGER.exception("Failed to detect the Nginx-plus API type (versioned or legacy), due to the error: %s", e)
+        return None
 
     def validate_nginx_version(self):
         '''
