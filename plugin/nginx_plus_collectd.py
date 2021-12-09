@@ -118,7 +118,7 @@ STREAM_UPSTREAM = 'StreamUpstream'
 PROCESSES = 'Processes'
 
 # Constants
-DEFAULT_API_VERSION = 3
+DEFAULT_API_VERSION = 1
 
 # Metric groups
 DEFAULT_CONNECTION_METRICS = [
@@ -307,12 +307,8 @@ class NginxPlusPlugin(object):
 
                     if api_version < 0:
                         raise ValueError("Invalid value found")
-                except ValueError as ve:
-                    raise ValueError(err_msg.format(err=ve))
-                except TypeError as te:
-                    raise TypeError(err_msg.format(err=te))
                 except Exception as e:
-                    raise Exception(err_msg.format(err=e))
+                    raise type(e)(err_msg.format(err=e))
             elif node.key == API_BASE_PATH:
                     api_base_path = node.values[0]
             elif node.key == DIMENSIONS:
@@ -332,7 +328,7 @@ class NginxPlusPlugin(object):
                 self.emitters.append(MetricEmitter(self._emit_cache_metrics, CACHE_METRICS))
             elif self._check_bool_config_enabled(node, PROCESSES):
                 self._log_emitter_group_enabled(PROCESSES)
-                self.emitters.append(MetricEmitter(self._emit_cache_metrics, PROCESSES_METRICS))
+                self.emitters.append(MetricEmitter(self._emit_processes_metrics, PROCESSES_METRICS))
             elif self._check_bool_config_enabled(node, UPSTREAM):
                 self._log_emitter_group_enabled(UPSTREAM)
                 self.emitters.append(MetricEmitter(self._emit_upstreams_metrics, UPSTREAM_METRICS))
@@ -704,18 +700,13 @@ class NginxStatusAgent(object):
         self.api_version = api_version
         self.api_base_path = api_base_path
 
-        detected_api_version = self._get_api_version()
-        if detected_api_version is None:
-            raise ValueError("Failed to detect the Nginx-plus API type (versioned or legacy)")
-        if api_version is None:
-            if detected_api_version != 0:
+        if self.api_version is None:
+            detected_api_version = self._get_api_version()
+            if detected_api_version is not None:
                 self.api_version = detected_api_version
-        elif detected_api_version == 0:
-            LOGGER.error("Legacy type of Nginx-plus API detected, please remove 'APIVersion' config option")
-            raise ValueError("Legacy type of Nginx-plus API detected, please remove 'APIVersion' config option")
 
         # set the default path in case of no user input
-        if api_base_path is None:
+        if self.api_base_path is None:
             if self.api_version is None:
                 self.api_base_path = "/status"
             else:
@@ -765,9 +756,6 @@ class NginxStatusAgent(object):
         Fetch the version of nginx+.
         Note, this will only return the value, not a dict.
         '''
-        # The 'if' block will only execute if 'self.api_version' is non-zero and
-        # positive integer(i.e. for newer versions of API)
-        # Note: 'self.api_version' will never be negative at this stage
         if self.api_version is not None:
             json_response = self._send_get(self.nginx_metadata_url)
             if isinstance(json_response, dict):
@@ -784,9 +772,6 @@ class NginxStatusAgent(object):
         Fetch the address of the nginx+ instance.
         Note, this will only return the value, not a dict.
         '''
-        # The 'if' block will only execute if 'self.api_version' is non-zero and
-        # positive integer(i.e. for newer versions of API)
-        # Note: 'self.api_version' will never be negative at this stage
         if self.api_version is not None:
             json_response = self._send_get(self.nginx_metadata_url)
             if isinstance(json_response, dict):
@@ -849,12 +834,11 @@ class NginxStatusAgent(object):
             else:
                 response = requests.get("{}{}".format(base_url, legacy_api_base_path), auth=self.auth_tuple)
                 if response.status_code == requests.codes.ok:
-                    return 0
-            LOGGER.error(
+                    return None
+            raise RuntimeError(
                 "Failed to detect the Nginx-plus API type (versioned or legacy), please check your input configuration.")
         except RequestException as e:
-            LOGGER.exception("Failed to detect the Nginx-plus API type (versioned or legacy), due to the error: %s", e)
-        return None
+            raise RequestException("Failed to detect the Nginx-plus API type (versioned or legacy), due to the error: %s", e)
 
     def validate_nginx_version(self):
         '''
@@ -863,12 +847,10 @@ class NginxStatusAgent(object):
         cur_nginx_version = self.get_nginx_version()
 
         if cur_nginx_version is None:
-            LOGGER.error('Unable to get the Nginx version')
-            raise ValueError("Unable to get the Nginx version")
+            raise RuntimeError("Unable to get the Nginx version")
 
         if self.nginx_version != cur_nginx_version:
-            LOGGER.error('Nginx version change detected from %s to %s', self.nginx_version, cur_nginx_version)
-            raise ValueError("Nginx version change detected from {} to {}".format(self.nginx_version, cur_nginx_version))
+            raise RuntimeError("Nginx version change detected from {} to {}".format(self.nginx_version, cur_nginx_version))
 
     def _send_get(self, url):
         '''
@@ -889,18 +871,7 @@ class NginxStatusAgent(object):
         '''
         Initialize the newer API URL
         '''
-        self.base_status_url = 'http://{}:{}{}/'.format(self.status_host, str(self.status_port), self.api_base_path)
-        supported_api_versions = self._send_get(self.base_status_url)
-
-        if not isinstance(supported_api_versions, list):
-            LOGGER.error('Failed to get the supported API versions')
-            raise ValueError("Failed to get the supported API versions")
-
-        if self.api_version not in supported_api_versions:
-            LOGGER.error('Unable to find the API version \'%s\' in the supported API versions: %s', self.api_version, supported_api_versions)
-            raise ValueError("Unable to find the API version '{}' in the supported API versions: {}".format(self.api_version, supported_api_versions))
-
-        self.base_status_url = '{}{}'.format(self.base_status_url, str(self.api_version))
+        self.base_status_url = 'http://{}:{}{}/{}'.format(self.status_host, str(self.status_port), self.api_base_path, str(self.api_version))
         self.nginx_metadata_url = '{}/nginx'.format(self.base_status_url)
         self.caches_url = '{}/http/caches'.format(self.base_status_url)
         self.server_zones_url = '{}/http/server_zones'.format(self.base_status_url)

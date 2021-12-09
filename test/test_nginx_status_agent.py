@@ -172,43 +172,28 @@ class NginxStatusAgentTest(TestCase):
         self.assertEquals(agent.api_version, 6)
         self.assertEquals(agent.api_base_path, '/api')
 
-    def test_initialize_newer_api_url_error_getting_api_version(self):
-        self.agent._send_get = MagicMock(return_value=None)
-
-        with self.assertRaises(ValueError) as value_error:
-            self.agent._initialize_newer_api_urls()
-        self.assertEquals(value_error.exception.message, "Failed to get the supported API versions")
-
-    def test_initialize_newer_api_url_error_no_api_version_found(self):
-        self.agent._send_get = MagicMock(return_value=[1, 2, 3])
-        self.agent.api_version = 4
-
-        with self.assertRaises(ValueError) as value_error:
-            self.agent._initialize_newer_api_urls()
-        self.assertEquals(value_error.exception.message, "Unable to find the API version '4' in the supported API versions: [1, 2, 3]")
-
     def test_validate_nginx_version_none(self):
         self.agent.get_nginx_version = MagicMock(return_value=None)
 
-        with self.assertRaises(ValueError) as value_error:
+        with self.assertRaises(RuntimeError) as runtime_error:
             self.agent.validate_nginx_version()
-        self.assertEquals(value_error.exception.message, "Unable to get the Nginx version")
+        self.assertEquals(runtime_error.exception.message, "Unable to get the Nginx version")
 
     def test_validate_nginx_version_change(self):
         self.agent.get_nginx_version = MagicMock(return_value="1.13.10")
         self.agent.nginx_version = "1.15.2"
 
-        with self.assertRaises(ValueError) as value_error:
+        with self.assertRaises(RuntimeError) as runtime_error:
             self.agent.validate_nginx_version()
-        self.assertEquals(value_error.exception.message, "Nginx version change detected from 1.15.2 to 1.13.10")
+        self.assertEquals(runtime_error.exception.message, "Nginx version change detected from 1.15.2 to 1.13.10")
 
     @patch('requests.get')
     def test_invalid_api_base_path(self, mock_requests_get):
         mock_requests_get.side_effect = _mocked_requests_get
 
-        with self.assertRaises(ValueError) as value_error:
+        with self.assertRaises(RuntimeError) as runtime_error:
             NginxStatusAgent(self.status_host, self.status_port, api_base_path='/invalid')
-        self.assertEquals(value_error.exception.message, "Failed to detect the Nginx-plus API type (versioned or legacy)")
+        self.assertEquals(runtime_error.exception.message, "Failed to detect the Nginx-plus API type (versioned or legacy), please check your input configuration.")
 
     @patch('requests.get')
     def test_invalid_api_base_path_initialization(self, mock_requests_get):

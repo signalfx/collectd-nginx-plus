@@ -179,17 +179,9 @@ class NginxStatusAgentTest(TestCase):
     def test_invalid_api_base_path(self, mock_requests_get):
         mock_requests_get.side_effect = _mocked_requests_get
 
-        with self.assertRaises(ValueError) as value_error:
+        with self.assertRaises(RuntimeError) as runtime_error:
             NginxStatusAgent(self.status_host, self.status_port, api_base_path='/invalid')
-        self.assertEquals(value_error.exception.message, "Failed to detect the Nginx-plus API type (versioned or legacy)")
-
-    @patch('requests.get')
-    def test_invalid_input_api_version(self, mock_requests_get):
-        mock_requests_get.side_effect = _mocked_requests_get
-
-        with self.assertRaises(ValueError) as value_error:
-            NginxStatusAgent(self.status_host, self.status_port, api_base_path='/status', api_version=0)
-        self.assertEquals(value_error.exception.message, "Legacy type of Nginx-plus API detected, please remove 'APIVersion' config option")
+        self.assertEquals(runtime_error.exception.message, "Failed to detect the Nginx-plus API type (versioned or legacy), please check your input configuration.")
 
     @patch('requests.get')
     def test_get_api_version(self, mock_requests_get):
@@ -197,7 +189,7 @@ class NginxStatusAgentTest(TestCase):
         self.agent.api_base_path = None
 
         api_version = self.agent._get_api_version()
-        self.assertEquals(0, api_version)
+        self.assertEquals(None, api_version)
 
     @patch('requests.get')
     def test_initialize_legacy_api_url(self, mock_requests_get):

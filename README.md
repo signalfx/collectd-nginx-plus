@@ -22,7 +22,7 @@ The available configuration options are detailed below.
 |:--------|:-----------|
 | StatusHost | IP address or DNS of the NGINX+ instance to retrieve status information from. Defaults to `localhost`. |
 | StatusPort | Port the NGINX+ status endpoint can be reached at. Defaults to `8080`. |
-| APIVersion | API version to use for fetching data from versioned API of NGINX+. Defaults to `3`. |
+| APIVersion | API version to use for fetching data from versioned API of NGINX+. Defaults to `1`. |
 | APIBasePath | API base path to use for the `status` or `api` directives. Defaults to `/status` and `/api` for the `status` and `api` directives respectively. It must start with the `/`. |
 | DebugLogLevel | Enable logging at DEBUG level. |
 | Username | Username to use for username/password authentication. |
@@ -43,7 +43,7 @@ LoadPlugin python
   <Module nginx_plus_collectd>
     StatusHost "localhost"
     StatusPort "8080"
-    APIVersion 5
+    APIVersion 2
     APIBasePath "/test/api"
     DebugLogLevel true
     Username "user_1"
