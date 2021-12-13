@@ -97,7 +97,7 @@ class MetricSink(object):
         '''
         return ','.join(['='.join((key.replace('.', '_'), value)) for key, value in dimensions.iteritems()])
 
-# Server configueration flags
+# Server configuration flags
 STATUS_HOST = 'StatusHost'
 STATUS_PORT = 'StatusPort'
 DEBUG_LOG_LEVEL = 'DebugLogLevel'
@@ -105,6 +105,8 @@ USERNAME = 'Username'
 PASSWORD = 'Password'
 DIMENSION = 'Dimension'
 DIMENSIONS = 'Dimensions' # Not publicly facing, used to support neo-agent auto-generated configs
+API_VERSION = 'APIVersion'
+API_BASE_PATH = 'APIBasePath'
 
 # Metric group configuration flags
 SERVER_ZONE = 'ServerZone'
@@ -114,6 +116,9 @@ CACHE = 'Cache'
 STREAM_SERVER_ZONE = 'StreamServerZone'
 STREAM_UPSTREAM = 'StreamUpstream'
 PROCESSES = 'Processes'
+
+# Constants
+DEFAULT_API_VERSION = 1
 
 # Metric groups
 DEFAULT_CONNECTION_METRICS = [
@@ -281,8 +286,10 @@ class NginxPlusPlugin(object):
         status_port = None
         username = None
         password = None
+        api_version = None
+        api_base_path = None
 
-        # Iterate the configueration values, pickup the status endpoint info
+        # Iterate the configuration values, pickup the status endpoint info
         # and create any specified opt-in metric emitters
         for node in conf.children:
             if node.key == STATUS_HOST:
@@ -293,6 +300,17 @@ class NginxPlusPlugin(object):
                 username = node.values[0]
             elif node.key == PASSWORD:
                 password = node.values[0]
+            elif node.key == API_VERSION:
+                err_msg = "{err}, please provide a valid positive integer value for the APIVersion"
+                try:
+                    api_version = int(node.values[0])
+
+                    if api_version < 0:
+                        raise ValueError("Invalid value found: {}".format(node.values[0]))
+                except Exception as e:
+                    raise type(e)(err_msg.format(err=e))
+            elif node.key == API_BASE_PATH:
+                    api_base_path = node.values[0]
             elif node.key == DIMENSIONS:
                 # The DIMENSIONS configuration property used to include dimensions represented as single string
                 # in the format: key_1=value-1,key_2=value_2
@@ -310,7 +328,7 @@ class NginxPlusPlugin(object):
                 self.emitters.append(MetricEmitter(self._emit_cache_metrics, CACHE_METRICS))
             elif self._check_bool_config_enabled(node, PROCESSES):
                 self._log_emitter_group_enabled(PROCESSES)
-                self.emitters.append(MetricEmitter(self._emit_cache_metrics, PROCESSES_METRICS))
+                self.emitters.append(MetricEmitter(self._emit_processes_metrics, PROCESSES_METRICS))
             elif self._check_bool_config_enabled(node, UPSTREAM):
                 self._log_emitter_group_enabled(UPSTREAM)
                 self.emitters.append(MetricEmitter(self._emit_upstreams_metrics, UPSTREAM_METRICS))
@@ -339,7 +357,7 @@ class NginxPlusPlugin(object):
         self.emitters.append(MetricEmitter(self._emit_cache_metrics, DEFAULT_CACHE_METRICS))
 
         self.sink = MetricSink()
-        self.nginx_agent = NginxStatusAgent(status_host, status_port, username, password)
+        self.nginx_agent = NginxStatusAgent(status_host, status_port, username, password, api_version, api_base_path)
 
         LOGGER.debug('Finished configuration. Will read status from %s:%s', status_host, status_port)
 
@@ -356,7 +374,9 @@ class NginxPlusPlugin(object):
 
         LOGGER.debug('Instance %s starting read', self.instance_id)
 
-        self._reload_ephemerial_global_dimensions()
+        self.nginx_agent.validate_nginx_version()
+
+        self._reload_ephemeral_global_dimensions()
 
         for emitter in self.emitters:
             emitter.emit(self.sink)
@@ -565,7 +585,7 @@ class NginxPlusPlugin(object):
                 updated_dims.update(self.global_dimensions)
                 sink.emit(MetricRecord(metric.name, metric.type, value, self.instance_id, updated_dims, time.time()))
 
-    def _reload_ephemerial_global_dimensions(self):
+    def _reload_ephemeral_global_dimensions(self):
         '''
         Reload any global dimensions that have the potential to change after configuration.
         '''
@@ -673,24 +693,33 @@ class NginxStatusAgent(object):
     '''
     Helper class for interacting with a single NGINX+ instance.
     '''
-    def __init__(self, status_host=None, status_port=None, username=None, password=None):
+    def __init__(self, status_host=None, status_port=None, username=None, password=None, api_version=None, api_base_path=None):
         self.status_host = status_host or 'localhost'
         self.status_port = status_port or 8080
         self.auth_tuple = (username, password) if username or password else None
+        self.api_version = api_version
+        self.api_base_path = api_base_path
 
-        self.base_status_url = 'http://{}:{}/status'.format(self.status_host, str(self.status_port))
-        self.nginx_version_url = '{}/nginx_version'.format(self.base_status_url)
-        self.address_url = '{}/address'.format(self.base_status_url)
-        self.caches_url = '{}/caches'.format(self.base_status_url)
-        self.server_zones_url = '{}/server_zones'.format(self.base_status_url)
-        self.upstreams_url = '{}/upstreams'.format(self.base_status_url)
-        self.stream_upstream_url = '{}/stream/upstreams'.format(self.base_status_url)
-        self.stream_server_zones_url = '{}/stream/server_zones'.format(self.base_status_url)
-        self.connections_url = '{}/connections'.format(self.base_status_url)
-        self.requests_url = '{}/requests'.format(self.base_status_url)
-        self.ssl_url = '{}/ssl'.format(self.base_status_url)
-        self.slabs_url = '{}/slabs'.format(self.base_status_url)
-        self.processes_url = '{}/processes'.format(self.base_status_url)
+        if self.api_version is None:
+            detected_api_version = self._get_api_version()
+            if detected_api_version is not None:
+                self.api_version = detected_api_version
+
+        # set the default path in case of no user input
+        if self.api_base_path is None:
+            if self.api_version is None:
+                self.api_base_path = "/status"
+            else:
+                self.api_base_path = "/api"
+
+        # initialize the API URLs as per the API type(legacy or newer)
+        if self.api_version is None:
+            self._initialize_legacy_api_urls()
+        else:
+            self._initialize_newer_api_urls()
+
+        # save the initial version to detect the version change at run time
+        self.nginx_version = self.get_nginx_version()
 
     def get_status(self):
         '''
@@ -727,6 +756,15 @@ class NginxStatusAgent(object):
         Fetch the version of nginx+.
         Note, this will only return the value, not a dict.
         '''
+        if self.api_version is not None:
+            json_response = self._send_get(self.nginx_metadata_url)
+            if isinstance(json_response, dict):
+                return json_response.get('version', None)
+
+            LOGGER.error("Unexpected response of type: %s from %s", type(json_response), self.nginx_metadata_url)
+
+            return None
+
         return self._send_get(self.nginx_version_url)
 
     def get_nginx_address(self):
@@ -734,6 +772,15 @@ class NginxStatusAgent(object):
         Fetch the address of the nginx+ instance.
         Note, this will only return the value, not a dict.
         '''
+        if self.api_version is not None:
+            json_response = self._send_get(self.nginx_metadata_url)
+            if isinstance(json_response, dict):
+                return json_response.get('address', None)
+
+            LOGGER.error("Unexpected response of type: %s from %s", type(json_response), self.nginx_metadata_url)
+
+            return None
+
         return self._send_get(self.address_url)
 
     def get_caches(self):
@@ -772,6 +819,39 @@ class NginxStatusAgent(object):
         '''
         return self._send_get(self.processes_url)
 
+    def _get_api_version(self):
+        '''
+        Determines whether the Nginx-plus plugin has a versioned API or legacy API.
+        '''
+        newer_api_base_path = self.api_base_path if self.api_base_path is not None else '/api'
+        legacy_api_base_path = self.api_base_path if self.api_base_path is not None else '/status'
+        base_url = 'http://{}:{}'.format(self.status_host, str(self.status_port))
+
+        try:
+            response = requests.get("{}{}/{}".format(base_url, newer_api_base_path, DEFAULT_API_VERSION), auth=self.auth_tuple)
+            if response.status_code == requests.codes.ok:
+                return DEFAULT_API_VERSION
+            else:
+                response = requests.get("{}{}".format(base_url, legacy_api_base_path), auth=self.auth_tuple)
+                if response.status_code == requests.codes.ok:
+                    return None
+            raise RuntimeError(
+                "Failed to detect the Nginx-plus API type (versioned or legacy), please check your input configuration.")
+        except RequestException as e:
+            raise RequestException("Failed to detect the Nginx-plus API type (versioned or legacy), due to the error: %s", e)
+
+    def validate_nginx_version(self):
+        '''
+        Detects the change in the Nginx version and raise an error in case of a version change or unable to get the version
+        '''
+        cur_nginx_version = self.get_nginx_version()
+
+        if cur_nginx_version is None:
+            raise RuntimeError("Unable to get the Nginx version")
+
+        if self.nginx_version != cur_nginx_version:
+            raise RuntimeError("Nginx version change detected from {} to {}".format(self.nginx_version, cur_nginx_version))
+
     def _send_get(self, url):
         '''
         Performs a GET against the given url.
@@ -786,6 +866,41 @@ class NginxStatusAgent(object):
         except RequestException as e:
             LOGGER.exception('Failed request to %s. %s', self.base_status_url, e)
         return status
+
+    def _initialize_newer_api_urls(self):
+        '''
+        Initialize the newer API URL
+        '''
+        self.base_status_url = 'http://{}:{}{}/{}'.format(self.status_host, str(self.status_port), self.api_base_path, str(self.api_version))
+        self.nginx_metadata_url = '{}/nginx'.format(self.base_status_url)
+        self.caches_url = '{}/http/caches'.format(self.base_status_url)
+        self.server_zones_url = '{}/http/server_zones'.format(self.base_status_url)
+        self.upstreams_url = '{}/http/upstreams'.format(self.base_status_url)
+        self.stream_upstream_url = '{}/stream/upstreams'.format(self.base_status_url)
+        self.stream_server_zones_url = '{}/stream/server_zones'.format(self.base_status_url)
+        self.connections_url = '{}/connections'.format(self.base_status_url)
+        self.requests_url = '{}/http/requests'.format(self.base_status_url)
+        self.ssl_url = '{}/ssl'.format(self.base_status_url)
+        self.slabs_url = '{}/slabs'.format(self.base_status_url)
+        self.processes_url = '{}/processes'.format(self.base_status_url)
+
+    def _initialize_legacy_api_urls(self):
+        '''
+        Initialize the legacy API URL
+        '''
+        self.base_status_url = 'http://{}:{}{}'.format(self.status_host, str(self.status_port), self.api_base_path)
+        self.nginx_version_url = '{}/nginx_version'.format(self.base_status_url)
+        self.address_url = '{}/address'.format(self.base_status_url)
+        self.caches_url = '{}/caches'.format(self.base_status_url)
+        self.server_zones_url = '{}/server_zones'.format(self.base_status_url)
+        self.upstreams_url = '{}/upstreams'.format(self.base_status_url)
+        self.stream_upstream_url = '{}/stream/upstreams'.format(self.base_status_url)
+        self.stream_server_zones_url = '{}/stream/server_zones'.format(self.base_status_url)
+        self.connections_url = '{}/connections'.format(self.base_status_url)
+        self.requests_url = '{}/requests'.format(self.base_status_url)
+        self.ssl_url = '{}/ssl'.format(self.base_status_url)
+        self.slabs_url = '{}/slabs'.format(self.base_status_url)
+        self.processes_url = '{}/processes'.format(self.base_status_url)
 
 
 class CollectdLogHandler(logging.Handler):
@@ -932,8 +1047,11 @@ LOGGER.propagate = False
 LOGGER.addHandler(log_handler)
 
 if __name__ == '__main__':
-    cli_status_host = sys.argv[1] if len(sys.argv) > 1 else 'demo.nginx.com'
-    cli_status_port = sys.argv[2] if len(sys.argv) > 2 else 80
+    kwargs = dict(arg.split('=') for arg in sys.argv[1:])
+    cli_status_host = kwargs['host'] if kwargs.get('host', None) else 'demo.nginx.com'
+    cli_status_port = kwargs['port'] if kwargs.get('port', None) else 80
+    cli_api_version = kwargs.get('api_version', None)
+    cli_api_base_path = kwargs.get('api_base_path', None)
 
     collectd = CollectdMock()
 
@@ -947,6 +1065,7 @@ if __name__ == '__main__':
     mock_config_dimension = CollectdConfigChildMock(DIMENSION, ['foo', 'bar'])
     mock_config_dimensions = CollectdConfigChildMock(DIMENSIONS, ['bat=baz'])
 
+
     # Setup the mock config to enable all metric groups
     mock_config_server_zone_child = CollectdConfigChildMock(SERVER_ZONE, ['true'])
     mock_config_memory_zone_child = CollectdConfigChildMock(MEMORY_ZONE, ['true'])
@@ -956,20 +1075,30 @@ if __name__ == '__main__':
     mock_config_stream_upstream_child = CollectdConfigChildMock(STREAM_UPSTREAM, ['true'])
     mock_config_processes_child = CollectdConfigChildMock(PROCESSES, ['true'])
 
-    mock_config = CollectdConfigMock([mock_config_ip_child,
-                                      mock_config_port_child,
-                                      mock_config_debug_log_level,
-                                      mock_config_server_zone_child,
-                                      mock_config_memory_zone_child,
-                                      mock_config_upstream_child,
-                                      mock_config_cache_child,
-                                      mock_config_stream_server_zone_child,
-                                      mock_config_stream_upstream_child,
-                                      mock_config_username,
-                                      mock_config_password,
-                                      mock_config_dimension,
-                                      mock_config_dimensions,
-                                      mock_config_processes_child])
+    mock_config_input_list = [mock_config_ip_child,
+                                mock_config_port_child,
+                                mock_config_debug_log_level,
+                                mock_config_server_zone_child,
+                                mock_config_memory_zone_child,
+                                mock_config_upstream_child,
+                                mock_config_cache_child,
+                                mock_config_stream_server_zone_child,
+                                mock_config_stream_upstream_child,
+                                mock_config_username,
+                                mock_config_password,
+                                mock_config_dimension,
+                                mock_config_dimensions,
+                                mock_config_processes_child]
+
+    if cli_api_version is not None:
+        mock_config_api_version = CollectdConfigChildMock(API_VERSION, [cli_api_version])
+        mock_config_input_list.append(mock_config_api_version)
+
+    if cli_api_base_path is not None:
+        mock_config_api_base_path = CollectdConfigChildMock(API_BASE_PATH, [cli_api_base_path])
+        mock_config_input_list.append(mock_config_api_base_path)
+
+    mock_config = CollectdConfigMock(mock_config_input_list)
 
     plugin_manager = NginxPlusPluginManager()
     plugin_manager.config_callback(mock_config)

@@ -1,64 +1,64 @@
 {
   "nginxorg": {
-    "pages": {
-      "used": 6,
-      "free": 1
-    },
-    "slots": {
-      "8": {
-        "used": 1,
-        "free": 503,
-        "reqs": 1,
-        "fails": 0
+      "pages": {
+          "used": 6,
+          "free": 9
       },
-      "16": {
-        "used": 2,
-        "free": 252,
-        "reqs": 2,
-        "fails": 0
-      },
-      "32": {
-        "used": 1,
-        "free": 126,
-        "reqs": 1,
-        "fails": 0
-      },
-      "64": {
-        "used": 0,
-        "free": 0,
-        "reqs": 0,
-        "fails": 0
-      },
-      "128": {
-        "used": 12,
-        "free": 20,
-        "reqs": 16,
-        "fails": 0
-      },
-      "256": {
-        "used": 1,
-        "free": 15,
-        "reqs": 1,
-        "fails": 0
-      },
-      "512": {
-        "used": 5,
-        "free": 3,
-        "reqs": 7,
-        "fails": 0
-      },
-      "1024": {
-        "used": 0,
-        "free": 0,
-        "reqs": 0,
-        "fails": 0
-      },
-      "2048": {
-        "used": 0,
-        "free": 0,
-        "reqs": 0,
-        "fails": 0
+      "slots": {
+          "8": {
+              "used": 1,
+              "free": 503,
+              "reqs": 1,
+              "fails": 0
+          },
+          "16": {
+              "used": 7,
+              "free": 247,
+              "reqs": 7,
+              "fails": 0
+          },
+          "32": {
+              "used": 4,
+              "free": 123,
+              "reqs": 4,
+              "fails": 0
+          },
+          "64": {
+              "used": 0,
+              "free": 0,
+              "reqs": 0,
+              "fails": 0
+          },
+          "128": {
+              "used": 14,
+              "free": 18,
+              "reqs": 14,
+              "fails": 0
+          },
+          "256": {
+              "used": 2,
+              "free": 14,
+              "reqs": 2,
+              "fails": 0
+          },
+          "512": {
+              "used": 6,
+              "free": 2,
+              "reqs": 6,
+              "fails": 0
+          },
+          "1024": {
+              "used": 0,
+              "free": 0,
+              "reqs": 0,
+              "fails": 0
+          },
+          "2048": {
+              "used": 0,
+              "free": 0,
+              "reqs": 0,
+              "fails": 0
+          }
       }
-    }
   }
 }

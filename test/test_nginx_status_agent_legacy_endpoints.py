@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import random
 import string
+from sys import api_version
 from unittest import TestCase
 from requests import HTTPError
 from mock import Mock, patch, MagicMock
@@ -9,13 +10,13 @@ from plugin.nginx_plus_collectd import NginxStatusAgent, DEFAULT_API_VERSION
 class NginxStatusAgentTest(TestCase):
     @patch('requests.get')
     def setUp(self, mock_requests_get):
-        self.status_host = _random_string()
-        self.status_port = _random_int()
-        self.base_status_url = 'http://{}:{}/api/4'.format(self.status_host, str(self.status_port))
-
         mock_requests_get.side_effect = _mocked_requests_get
 
-        self.agent = NginxStatusAgent(self.status_host, self.status_port, api_version=4)
+        self.status_host = _random_string()
+        self.status_port = _random_int()
+        self.base_status_url = 'http://{}:{}/status'.format(self.status_host, str(self.status_port))
+
+        self.agent = NginxStatusAgent(self.status_host, self.status_port)
 
     @patch('requests.get')
     def test_return_json_on_ok_status(self, mock_requests_get):
@@ -27,7 +28,7 @@ class NginxStatusAgentTest(TestCase):
 
         mock_requests_get.return_value = mock_response
 
-        actual_response = self.agent._send_get('http://demo.nginx.com/api/4')
+        actual_response = self.agent._send_get('http://demo.nginx.com/status')
         self.assertDictEqual(expected_response, actual_response)
 
     @patch('requests.get')
@@ -37,14 +38,14 @@ class NginxStatusAgentTest(TestCase):
 
         mock_requests_get.return_value = mock_response
 
-        response = self.agent._send_get('http://demo.nginx.com/api/4')
+        response = self.agent._send_get('http://demo.nginx.com/status')
         self.assertIsNone(response)
 
     @patch('requests.get')
     def test_none_on_exception(self, mock_requests_get):
         mock_requests_get.side_effect = HTTPError('Thrown from test_none_on_exception')
 
-        response = self.agent._send_get('http://demo.nginx.com/api/4')
+        response = self.agent._send_get('http://demo.nginx.com/status')
         self.assertIsNone(response)
 
     @patch('requests.get')
@@ -61,7 +62,7 @@ class NginxStatusAgentTest(TestCase):
 
     @patch('requests.get')
     def test_get_requests(self, mock_requests_get):
-        expected_url = '{}/http/requests'.format(self.base_status_url)
+        expected_url = '{}/requests'.format(self.base_status_url)
 
         self.agent.get_requests()
         mock_requests_get.assert_called_with(expected_url, auth=None)
@@ -82,35 +83,35 @@ class NginxStatusAgentTest(TestCase):
 
     @patch('requests.get')
     def test_get_nginx_version(self, mock_requests_get):
-        expected_url = '{}/nginx'.format(self.base_status_url)
+        expected_url = '{}/nginx_version'.format(self.base_status_url)
 
         self.agent.get_nginx_version()
         mock_requests_get.assert_called_with(expected_url, auth=None)
 
     @patch('requests.get')
     def test_get_nginx_address(self, mock_requests_get):
-        expected_url = '{}/nginx'.format(self.base_status_url)
+        expected_url = '{}/address'.format(self.base_status_url)
 
         self.agent.get_nginx_address()
         mock_requests_get.assert_called_with(expected_url, auth=None)
 
     @patch('requests.get')
     def test_get_caches(self, mock_requests_get):
-        expected_url = '{}/http/caches'.format(self.base_status_url)
+        expected_url = '{}/caches'.format(self.base_status_url)
 
         self.agent.get_caches()
         mock_requests_get.assert_called_with(expected_url, auth=None)
 
     @patch('requests.get')
     def test_get_server_zones(self, mock_requests_get):
-        expected_url = '{}/http/server_zones'.format(self.base_status_url)
+        expected_url = '{}/server_zones'.format(self.base_status_url)
 
         self.agent.get_server_zones()
         mock_requests_get.assert_called_with(expected_url, auth=None)
 
     @patch('requests.get')
     def test_get_upstreams(self, mock_requests_get):
-        expected_url = '{}/http/upstreams'.format(self.base_status_url)
+        expected_url = '{}/upstreams'.format(self.base_status_url)
 
         self.agent.get_upstreams()
         mock_requests_get.assert_called_with(expected_url, auth=None)
@@ -137,7 +138,7 @@ class NginxStatusAgentTest(TestCase):
         password = _random_string()
         auth_tuple = (username, password)
 
-        auth_agent = NginxStatusAgent(self.status_host, self.status_port, username, password, api_version=4)
+        auth_agent = NginxStatusAgent(self.status_host, self.status_port, username, password)
 
         auth_agent.get_status()
         mock_requests_get.assert_called_with(self.base_status_url, auth=auth_tuple)
@@ -150,42 +151,29 @@ class NginxStatusAgentTest(TestCase):
         mock_requests_get.assert_called_with(expected_url, auth=None)
 
     @patch('requests.get')
-    def test_api_version_and_api_base_path_input_None(self, mock_requests_get):
-        mock_requests_get.side_effect = _mocked_requests_get
-
-        agent = NginxStatusAgent(self.status_host, self.status_port)
-        self.assertEquals(agent.api_version, DEFAULT_API_VERSION)
-        self.assertEquals(agent.api_base_path, '/api')
-
-    @patch('requests.get')
     def test_non_default_api_base_path(self, mock_requests_get):
         mock_requests_get.side_effect = _mocked_requests_get
 
-        agent = NginxStatusAgent(self.status_host, self.status_port, api_base_path='/test/api')
-        self.assertEquals(agent.api_base_path, '/test/api')
+        agent = NginxStatusAgent(self.status_host, self.status_port, api_base_path='/test/status')
+        self.assertEquals(agent.api_version, None)
+        self.assertEquals(agent.api_base_path, '/test/status')
 
     @patch('requests.get')
-    def test_api_version(self, mock_requests_get):
+    def test_default_api_base_path(self, mock_requests_get):
         mock_requests_get.side_effect = _mocked_requests_get
 
-        agent = NginxStatusAgent(self.status_host, self.status_port, api_version=6)
-        self.assertEquals(agent.api_version, 6)
-        self.assertEquals(agent.api_base_path, '/api')
+        agent = NginxStatusAgent(self.status_host, self.status_port)
+        self.assertEquals(agent.api_version, None)
+        self.assertEquals(agent.api_base_path, '/status')
 
-    def test_validate_nginx_version_none(self):
-        self.agent.get_nginx_version = MagicMock(return_value=None)
+    @patch('requests.get')
+    def test_invalid_api_base_path_initialization(self, mock_requests_get):
+        mock_requests_get.side_effect = _mocked_requests_get
+        expected_base_path_url = "http://{}:{}invalid/status".format(self.status_host, self.status_port)
 
-        with self.assertRaises(RuntimeError) as runtime_error:
-            self.agent.validate_nginx_version()
-        self.assertEquals(runtime_error.exception.message, "Unable to get the Nginx version")
-
-    def test_validate_nginx_version_change(self):
-        self.agent.get_nginx_version = MagicMock(return_value="1.13.10")
-        self.agent.nginx_version = "1.15.2"
-
-        with self.assertRaises(RuntimeError) as runtime_error:
-            self.agent.validate_nginx_version()
-        self.assertEquals(runtime_error.exception.message, "Nginx version change detected from 1.15.2 to 1.13.10")
+        agent = NginxStatusAgent(self.status_host, self.status_port, api_base_path='invalid/status')
+        agent._initialize_legacy_api_urls()
+        self.assertEquals(agent.base_status_url, expected_base_path_url)
 
     @patch('requests.get')
     def test_invalid_api_base_path(self, mock_requests_get):
@@ -196,38 +184,32 @@ class NginxStatusAgentTest(TestCase):
         self.assertEquals(runtime_error.exception.message, "Failed to detect the Nginx-plus API type (versioned or legacy), please check your input configuration.")
 
     @patch('requests.get')
-    def test_invalid_api_base_path_initialization(self, mock_requests_get):
-        mock_requests_get.side_effect = _mocked_requests_get
-        expected_base_path_url = "http://{}:{}test/api/{}".format(self.status_host, self.status_port, DEFAULT_API_VERSION)
-
-        agent = NginxStatusAgent(self.status_host, self.status_port, api_base_path='test/api')
-        agent._initialize_newer_api_urls()
-        self.assertEquals(agent.base_status_url, expected_base_path_url)
-
-    @patch('requests.get')
     def test_get_api_version(self, mock_requests_get):
         mock_requests_get.side_effect = _mocked_requests_get
         self.agent.api_base_path = None
 
         api_version = self.agent._get_api_version()
-        self.assertEquals(DEFAULT_API_VERSION, api_version)
+        self.assertEquals(None, api_version)
 
-    def test_initialize_newer_api_url(self):
-        self.agent._send_get = MagicMock(return_value=[1, 2, 3, 4, 5, 6, 7])
-        self.nginx_metadata_url = '{}/nginx'.format(self.base_status_url)
-        self.caches_url = '{}/http/caches'.format(self.base_status_url)
-        self.server_zones_url = '{}/http/server_zones'.format(self.base_status_url)
-        self.upstreams_url = '{}/http/upstreams'.format(self.base_status_url)
+    @patch('requests.get')
+    def test_initialize_legacy_api_url(self, mock_requests_get):
+        mock_requests_get.side_effect = _mocked_requests_get
+        self.nginx_version_url = '{}/nginx_version'.format(self.base_status_url)
+        self.address_url = '{}/address'.format(self.base_status_url)
+        self.caches_url = '{}/caches'.format(self.base_status_url)
+        self.server_zones_url = '{}/server_zones'.format(self.base_status_url)
+        self.upstreams_url = '{}/upstreams'.format(self.base_status_url)
         self.stream_upstream_url = '{}/stream/upstreams'.format(self.base_status_url)
         self.stream_server_zones_url = '{}/stream/server_zones'.format(self.base_status_url)
         self.connections_url = '{}/connections'.format(self.base_status_url)
-        self.requests_url = '{}/http/requests'.format(self.base_status_url)
+        self.requests_url = '{}/requests'.format(self.base_status_url)
         self.ssl_url = '{}/ssl'.format(self.base_status_url)
         self.slabs_url = '{}/slabs'.format(self.base_status_url)
         self.processes_url = '{}/processes'.format(self.base_status_url)
 
-        self.agent._initialize_newer_api_urls()
-        self.assertEquals(self.nginx_metadata_url, self.agent.nginx_metadata_url)
+        self.agent._initialize_legacy_api_urls()
+        self.assertEquals(self.nginx_version_url, self.agent.nginx_version_url)
+        self.assertEquals(self.address_url, self.agent.address_url)
         self.assertEquals(self.caches_url, self.agent.caches_url)
         self.assertEquals(self.server_zones_url, self.agent.server_zones_url)
         self.assertEquals(self.upstreams_url, self.agent.upstreams_url)
@@ -238,7 +220,6 @@ class NginxStatusAgentTest(TestCase):
         self.assertEquals(self.ssl_url, self.agent.ssl_url)
         self.assertEquals(self.slabs_url, self.agent.slabs_url)
         self.assertEquals(self.processes_url, self.agent.processes_url)
-
 
 def _random_string(length=8):
     return ''.join(random.choice(string.lowercase) for i in range(length))
@@ -255,8 +236,10 @@ def _mocked_requests_get(*args, **kwargs):
         def json(self):
             return self.json_data
 
+    if '/{}'.format(DEFAULT_API_VERSION) in args[0]:
+        return MockResponse(None, 404)
 
-    if '/api' in args[0]:
-        return MockResponse([1, 2, 3, 4, 5, 6, 7], 200)
+    if '/status' in args[0]:
+        return MockResponse(None, 200)
 
     return MockResponse(None, 404)

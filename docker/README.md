@@ -32,6 +32,17 @@ copy the certificate to `nginx-plus-server/nginx-repo.crt` and the key to `nginx
 Another option is to change the paths to the certificate and key files in lines 12 and 13 of
 `nginx-plus-server/Dockerfile`.
 
+## Run with the legacy NGINX Plus API
+
+Current `nginx-plus-server/Dockerfile` is configured to run the NGINX+ with the newer type of API. In order to run
+the NGINX+ with the legacy type of API, make the following changes:
+
+1. In `nginx-plus-server/nginx.conf` use `/status.html` instead of `/dashboard.html`
+2. Make the following changes in `nginx-plus-server/nginx.conf`:
+    * Replace the `api` directive with the `status` directive
+    * Update the API base path (`/test/api`) with some other base path (optional)
+3. Update the `collectd/20-nginx-plus.conf` with the valid configuration.
+
 ## Starting the Environment
 
 Running `docker-compose up -d --build` will build the Docker images and start the containers.
