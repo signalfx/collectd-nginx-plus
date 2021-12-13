@@ -306,7 +306,7 @@ class NginxPlusPlugin(object):
                     api_version = int(node.values[0])
 
                     if api_version < 0:
-                        raise ValueError("Invalid value found")
+                        raise ValueError("Invalid value found: {}".format(node.values[0]))
                 except Exception as e:
                     raise type(e)(err_msg.format(err=e))
             elif node.key == API_BASE_PATH:
