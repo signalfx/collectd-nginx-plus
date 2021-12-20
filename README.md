@@ -1,3 +1,5 @@
+>ℹ️&nbsp;&nbsp;SignalFx was acquired by Splunk in October 2019. See [Splunk SignalFx](https://www.splunk.com/en_us/investor-relations/acquisitions/signalfx.html) for more information.
+
 # NGINX Plus Collectd plugin
 
 A [collectd](http://collectd.org) plugin to collect [NGINX Plus](https://www.nginx.com/products/) stats and metrics.
